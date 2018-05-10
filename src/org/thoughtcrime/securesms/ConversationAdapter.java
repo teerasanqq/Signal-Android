@@ -31,7 +31,6 @@ import android.widget.TextView;
 
 import com.annimon.stream.Stream;
 
-import org.thoughtcrime.securesms.BindableConversationItem.ViewModelRetriever;
 import org.thoughtcrime.securesms.ConversationAdapter.HeaderViewHolder;
 import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
@@ -96,7 +95,6 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
   private final @NonNull  GlideRequests      glideRequests;
   private final @NonNull  Locale             locale;
   private final @NonNull  Recipient          recipient;
-  private final @NonNull  ViewModelRetriever viewModelRetriever;
   private final @NonNull  MmsSmsDatabase     db;
   private final @NonNull  LayoutInflater     inflater;
   private final @NonNull  Calendar           calendar;
@@ -149,7 +147,6 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
       this.locale             = null;
       this.clickListener      = null;
       this.recipient          = null;
-      this.viewModelRetriever = null;
       this.inflater           = null;
       this.db                 = null;
       this.calendar           = null;
@@ -164,8 +161,7 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
                              @NonNull Locale locale,
                              @Nullable ItemClickListener clickListener,
                              @Nullable Cursor cursor,
-                             @NonNull Recipient recipient,
-                             @NonNull ViewModelRetriever viewModelRetriever)
+                             @NonNull Recipient recipient)
   {
     super(context, cursor);
 
@@ -174,7 +170,6 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
       this.locale             = locale;
       this.clickListener      = clickListener;
       this.recipient          = recipient;
-      this.viewModelRetriever = viewModelRetriever;
       this.inflater           = LayoutInflater.from(context);
       this.db                 = DatabaseFactory.getMmsSmsDatabase(context);
       this.calendar           = Calendar.getInstance();
@@ -196,7 +191,7 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
   @Override
   protected void onBindItemViewHolder(ViewHolder viewHolder, @NonNull MessageRecord messageRecord) {
     long start = System.currentTimeMillis();
-    viewHolder.getView().bind(messageRecord, glideRequests, locale, batchSelected, recipient, viewModelRetriever, messageRecord == recordToPulseHighlight);
+    viewHolder.getView().bind(messageRecord, glideRequests, locale, batchSelected, recipient, messageRecord == recordToPulseHighlight);
     if (messageRecord == recordToPulseHighlight) {
       recordToPulseHighlight = null;
     }

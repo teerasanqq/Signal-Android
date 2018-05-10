@@ -52,6 +52,8 @@ import org.thoughtcrime.securesms.components.RemovableEditableMediaView;
 import org.thoughtcrime.securesms.components.ThumbnailView;
 import org.thoughtcrime.securesms.components.location.SignalMapView;
 import org.thoughtcrime.securesms.components.location.SignalPlace;
+import org.thoughtcrime.securesms.contactshare.model.ContactStream;
+import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.giph.ui.GiphyActivity;
 import org.thoughtcrime.securesms.permissions.Permissions;
 import org.thoughtcrime.securesms.providers.PersistentBlobProvider;
@@ -62,10 +64,12 @@ import org.thoughtcrime.securesms.util.ViewUtil;
 import org.thoughtcrime.securesms.util.concurrent.AssertedSuccessListener;
 import org.thoughtcrime.securesms.util.concurrent.ListenableFuture;
 import org.thoughtcrime.securesms.util.concurrent.ListenableFuture.Listener;
+import org.thoughtcrime.securesms.util.concurrent.SettableFuture;
 import org.thoughtcrime.securesms.util.views.Stub;
 import org.whispersystems.libsignal.util.guava.Optional;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -201,6 +205,37 @@ public class AttachmentManager {
         attachmentListener.onAttachmentChanged();
       }
     });
+  }
+
+  @SuppressLint("StaticFieldLeak")
+  public ListenableFuture<Boolean> setSharedContact(@NonNull final ContactWithAvatar contactWithAvatar) {
+    SettableFuture<Boolean> future = new SettableFuture<>();
+
+    new AsyncTask<Void, Void, SharedContactSlide>() {
+      @Override
+      protected SharedContactSlide doInBackground(Void... voids) {
+        try {
+          InputStream stream = new ContactStream(contactWithAvatar.getContact(), PartAuthority.getAttachmentStream(context, contactWithAvatar.getAvatarUri()));
+          Uri         uri    = PersistentBlobProvider.getInstance(context).create(context, stream, MediaUtil.SHARED_CONTACT, null, null);
+
+          return new SharedContactSlide(context, uri, 0, 0, 0);
+        } catch (IOException e) {
+          return null;
+        }
+      }
+
+      @Override
+      protected void onPostExecute(SharedContactSlide sharedContactSlide) {
+        if (sharedContactSlide != null) {
+          setSlide(sharedContactSlide);
+          future.set(true);
+        } else {
+          future.set(false);
+        }
+      }
+    }.execute();
+
+    return future;
   }
 
   @SuppressLint("StaticFieldLeak")

@@ -9,8 +9,8 @@ import android.support.annotation.NonNull;
 import com.annimon.stream.Stream;
 
 import org.thoughtcrime.securesms.contactshare.model.Contact;
+import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.contactshare.model.Selectable;
-import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.util.SingleLiveEvent;
 
 import java.util.ArrayList;
@@ -18,47 +18,46 @@ import java.util.List;
 
 class ContactShareEditViewModel extends ViewModel {
 
-  private final MutableLiveData<List<Contact>> contacts;
-  private final SingleLiveEvent<Event>         events;
-  private final ContactRepository              repo;
+  private final MutableLiveData<List<ContactWithAvatar>> contactsWithAvatars;
+  private final SingleLiveEvent<Event>                   events;
+  private final ContactRepository                        repo;
 
   ContactShareEditViewModel(@NonNull List<Long>        contactIds,
                             @NonNull ContactRepository contactRepository)
   {
-    contacts = new MutableLiveData<>();
-    events   = new SingleLiveEvent<>();
-    repo     = contactRepository;
+    contactsWithAvatars = new MutableLiveData<>();
+    events              = new SingleLiveEvent<>();
+    repo                = contactRepository;
 
-    repo.getContacts(contactIds, retrieved -> {
+    repo.getContactsWithAvatars(contactIds, retrieved -> {
       if (retrieved.isEmpty()) {
         events.postValue(Event.BAD_CONTACT);
       } else {
-        contacts.postValue(retrieved);
+        contactsWithAvatars.postValue(retrieved);
       }
     });
   }
 
-  @NonNull LiveData<List<Contact>> getContacts() {
-    return contacts;
+  @NonNull LiveData<List<ContactWithAvatar>> getContactsWithAvatars() {
+    return contactsWithAvatars;
   }
 
-  @NonNull LiveData<List<Contact>> getFinalizedContacts() {
-    List<Contact> currentContacts = getCurrentContacts();
-    List<Contact> trimmedContacts = new ArrayList<>(currentContacts.size());
+  @NonNull List<ContactWithAvatar> getFinalizedContacts() {
+    List<ContactWithAvatar> currentContacts = getCurrentContacts();
+    List<ContactWithAvatar> trimmedContacts = new ArrayList<>(currentContacts.size());
 
-    for (Contact contact : currentContacts) {
-      trimmedContacts.add(new Contact(contact.getName(),
-                                      contact.getOrganization(),
-                                      trimSelectables(contact.getPhoneNumbers()),
-                                      trimSelectables(contact.getEmails()),
-                                      trimSelectables(contact.getPostalAddresses()),
-                                      contact.getAvatar()));
+    for (ContactWithAvatar contact : currentContacts) {
+      Contact trimmed = new Contact(contact.getContact().getName(),
+                                    contact.getContact().getOrganization(),
+                                    trimSelectables(contact.getContact().getPhoneNumbers()),
+                                    trimSelectables(contact.getContact().getEmails()),
+                                    trimSelectables(contact.getContact().getPostalAddresses()),
+                                    contact.getContact().getAvatarState(),
+                                    contact.getContact().getAvatarSize());
+      trimmedContacts.add(new ContactWithAvatar(trimmed, contact.getAvatarUri()));
     }
 
-    SingleLiveEvent<List<Contact>> finalizedContacts = new SingleLiveEvent<>();
-    repo.persistContactImages(trimmedContacts, finalizedContacts::postValue);
-
-    return finalizedContacts;
+    return trimmedContacts;
   }
 
   @NonNull LiveData<Event> getEvents() {
@@ -70,8 +69,8 @@ class ContactShareEditViewModel extends ViewModel {
   }
 
   @NonNull
-  private List<Contact> getCurrentContacts() {
-    List<Contact> currentContacts = contacts.getValue();
+  private List<ContactWithAvatar> getCurrentContacts() {
+    List<ContactWithAvatar> currentContacts = contactsWithAvatars.getValue();
     return currentContacts != null ? currentContacts : new ArrayList<>();
   }
 

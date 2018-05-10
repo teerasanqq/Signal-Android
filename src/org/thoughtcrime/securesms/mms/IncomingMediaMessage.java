@@ -8,6 +8,7 @@ import org.thoughtcrime.securesms.util.GroupUtil;
 import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachment;
 import org.whispersystems.signalservice.api.messages.SignalServiceGroup;
+import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -15,16 +16,16 @@ import java.util.List;
 
 public class IncomingMediaMessage {
 
-  private final Address       from;
-  private final Address       groupId;
-  private final String        body;
-  private final boolean       push;
-  private final long          sentTimeMillis;
-  private final int           subscriptionId;
-  private final long          expiresIn;
-  private final boolean       expirationUpdate;
-  private final QuoteModel    quote;
-  private final List<Contact> sharedContacts;
+  private final Address             from;
+  private final Address             groupId;
+  private final String              body;
+  private final boolean             push;
+  private final long                sentTimeMillis;
+  private final int                 subscriptionId;
+  private final long                expiresIn;
+  private final boolean             expirationUpdate;
+  private final QuoteModel          quote;
+  private final List<SharedContact> sharedContacts;
 
   private final List<Attachment> attachments = new LinkedList<>();
 
@@ -61,7 +62,7 @@ public class IncomingMediaMessage {
                               Optional<SignalServiceGroup> group,
                               Optional<List<SignalServiceAttachment>> attachments,
                               Optional<QuoteModel> quote,
-                              List<Contact> sharedContacts)
+                              List<SharedContact> sharedContacts)
   {
     this.push             = true;
     this.from             = from;
@@ -123,7 +124,7 @@ public class IncomingMediaMessage {
     return quote;
   }
 
-  public List<Contact> getSharedContacts() {
+  public List<SharedContact> getSharedContacts() {
     return sharedContacts;
   }
 }

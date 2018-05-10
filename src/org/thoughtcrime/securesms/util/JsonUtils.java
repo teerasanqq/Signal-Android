@@ -67,10 +67,5 @@ public class JsonUtils {
     public int getInt(String name) throws JSONException {
       return delegate.getInt(name);
     }
-
-    public boolean getBoolean(String name) throws JSONException {
-      if (delegate.isNull(name)) return false;
-      else                       return delegate.getBoolean(name);
-    }
   }
 }

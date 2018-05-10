@@ -5,11 +5,13 @@ import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.thoughtcrime.securesms.util.JsonUtils;
+import com.google.common.base.Objects;
 
-public class Email implements Selectable, Parcelable, Json {
+import java.io.Serializable;
+
+public class Email implements Selectable, Parcelable, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final String email;
   private final Type   type;
@@ -28,15 +30,15 @@ public class Email implements Selectable, Parcelable, Json {
     this(in.readString(), Type.valueOf(in.readString()), in.readString());
   }
 
-  public String getEmail() {
+  public @NonNull String getEmail() {
     return email;
   }
 
-  public Type getType() {
+  public @NonNull Type getType() {
     return type;
   }
 
-  public String getLabel() {
+  public @NonNull String getLabel() {
     return label;
   }
 
@@ -51,19 +53,23 @@ public class Email implements Selectable, Parcelable, Json {
   }
 
   @Override
-  public JSONObject toJson() throws JSONException {
-    JSONObject object = new JSONObject();
-    object.put("email", email);
-    object.put("type", type.name());
-    object.put("label", label);
-    return object;
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+
+    Email email1 = (Email) o;
+
+    if (!email.equals(email1.email)) return false;
+    if (type != email1.type) return false;
+    return label != null ? label.equals(email1.label) : email1.label == null;
   }
 
-  public static Email fromJson(@NonNull JSONObject original) throws JSONException {
-    JsonUtils.SaneJSONObject object = new JsonUtils.SaneJSONObject(original);
-    return new Email(object.getString("email"),
-                     Type.valueOf(object.getString("type")),
-                     object.getString("label"));
+  @Override
+  public int hashCode() {
+    int result = email.hashCode();
+    result = 31 * result + type.hashCode();
+    result = 31 * result + (label != null ? label.hashCode() : 0);
+    return result;
   }
 
   @Override

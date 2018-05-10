@@ -2,16 +2,16 @@ package org.thoughtcrime.securesms.contactshare.model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.thoughtcrime.securesms.util.JsonUtils;
-import org.w3c.dom.Text;
+import com.google.common.base.Objects;
 
-public class Name implements Parcelable, Json {
+import java.io.Serializable;
+
+public class Name implements Parcelable, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final String displayName;
   private final String givenName;
@@ -73,25 +73,32 @@ public class Name implements Parcelable, Json {
   }
 
   @Override
-  public JSONObject toJson() throws JSONException {
-    JSONObject object = new JSONObject();
-    object.put("displayName", displayName);
-    object.put("givenName", givenName);
-    object.put("familyName", familyName);
-    object.put("prefix", prefix);
-    object.put("suffix", suffix);
-    object.put("middleName", middleName);
-    return object;
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+
+    Name name = (Name) o;
+
+    if (displayName != null ? !displayName.equals(name.displayName) : name.displayName != null)
+      return false;
+    if (givenName != null ? !givenName.equals(name.givenName) : name.givenName != null)
+      return false;
+    if (familyName != null ? !familyName.equals(name.familyName) : name.familyName != null)
+      return false;
+    if (prefix != null ? !prefix.equals(name.prefix) : name.prefix != null) return false;
+    if (suffix != null ? !suffix.equals(name.suffix) : name.suffix != null) return false;
+    return middleName != null ? middleName.equals(name.middleName) : name.middleName == null;
   }
 
-  public static Name fromJson(@NonNull JSONObject original) throws JSONException {
-    JsonUtils.SaneJSONObject object = new JsonUtils.SaneJSONObject(original);
-    return new Name(object.getString("displayName"),
-                    object.getString("givenName"),
-                    object.getString("familyName"),
-                    object.getString("prefix"),
-                    object.getString("suffix"),
-                    object.getString("middleName"));
+  @Override
+  public int hashCode() {
+    int result = displayName != null ? displayName.hashCode() : 0;
+    result = 31 * result + (givenName != null ? givenName.hashCode() : 0);
+    result = 31 * result + (familyName != null ? familyName.hashCode() : 0);
+    result = 31 * result + (prefix != null ? prefix.hashCode() : 0);
+    result = 31 * result + (suffix != null ? suffix.hashCode() : 0);
+    result = 31 * result + (middleName != null ? middleName.hashCode() : 0);
+    return result;
   }
 
   @Override

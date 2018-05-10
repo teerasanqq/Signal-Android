@@ -3,13 +3,11 @@ package org.thoughtcrime.securesms.util;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.WorkerThread;
-import android.support.media.ExifInterface;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
@@ -20,6 +18,7 @@ import com.bumptech.glide.load.resource.gif.GifDrawable;
 
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.mms.AudioSlide;
+import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
 import org.thoughtcrime.securesms.mms.DocumentSlide;
 import org.thoughtcrime.securesms.mms.GifSlide;
@@ -46,12 +45,14 @@ public class MediaUtil {
   public static final String AUDIO_AAC         = "audio/aac";
   public static final String AUDIO_UNSPECIFIED = "audio/*";
   public static final String VIDEO_UNSPECIFIED = "video/*";
-  public static final String CONTACT           = "text/signal-contact";
+  public static final String SHARED_CONTACT    = "text/signal-contact";
 
 
   public static Slide getSlideForAttachment(Context context, Attachment attachment) {
     Slide slide = null;
-    if (isGif(attachment.getContentType())) {
+    if (isSharedContact(attachment.getContentType())) {
+      slide = new SharedContactSlide(context, attachment);
+    } else if (isGif(attachment.getContentType())) {
       slide = new GifSlide(context, attachment);
     } else if (isImageType(attachment.getContentType())) {
       slide = new ImageSlide(context, attachment);
@@ -197,6 +198,10 @@ public class MediaUtil {
 
   public static boolean isVideo(String contentType) {
     return !TextUtils.isEmpty(contentType) && contentType.trim().startsWith("video/");
+  }
+
+  public static boolean isSharedContact(String contentType) {
+    return !TextUtils.isEmpty(contentType) && contentType.trim().equals(SHARED_CONTACT);
   }
 
   public static boolean isGif(String contentType) {

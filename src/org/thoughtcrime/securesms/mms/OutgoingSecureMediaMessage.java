@@ -1,10 +1,8 @@
 package org.thoughtcrime.securesms.mms;
 
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import org.thoughtcrime.securesms.attachments.Attachment;
-import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.recipients.Recipient;
 
 import java.util.List;
@@ -16,10 +14,9 @@ public class OutgoingSecureMediaMessage extends OutgoingMediaMessage {
                                     long sentTimeMillis,
                                     int distributionType,
                                     long expiresIn,
-                                    @Nullable QuoteModel quote,
-                                    @NonNull List<Contact> contacts)
+                                    @Nullable QuoteModel quote)
   {
-    super(recipient, body, attachments, sentTimeMillis, -1, expiresIn, distributionType, quote, contacts);
+    super(recipient, body, attachments, sentTimeMillis, -1, expiresIn, distributionType, quote);
   }
 
   public OutgoingSecureMediaMessage(OutgoingMediaMessage base) {

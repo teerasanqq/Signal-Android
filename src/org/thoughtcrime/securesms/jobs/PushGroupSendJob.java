@@ -152,8 +152,8 @@ public class PushGroupSendJob extends PushSendJob implements InjectableType {
     MediaConstraints              mediaConstraints  = MediaConstraints.getPushMediaConstraints();
     List<Attachment>              scaledAttachments = scaleAndStripExifFromAttachments(mediaConstraints, message.getAttachments());
     List<SignalServiceAttachment> attachmentStreams = getAttachmentsFor(scaledAttachments);
+    List<SharedContact>           sharedContacts    = getSharedContactsFor(scaledAttachments);
     Optional<Quote>               quote             = getQuoteFor(message);
-    Optional<List<SharedContact>> contacts          = getSharedContactsFor(message);
 
     List<SignalServiceAddress>    addresses;
 
@@ -183,7 +183,7 @@ public class PushGroupSendJob extends PushSendJob implements InjectableType {
                                                                       .asExpirationUpdate(message.isExpirationUpdate())
                                                                       .withProfileKey(profileKey.orNull())
                                                                       .withQuote(quote.orNull())
-                                                                      .withSharedContacts(contacts.orNull())
+                                                                      .withSharedContacts(sharedContacts)
                                                                       .build();
 
       messageSender.sendMessage(addresses, groupMessage);

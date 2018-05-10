@@ -6,11 +6,13 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.thoughtcrime.securesms.util.JsonUtils;
+import com.google.common.base.Objects;
 
-public class PostalAddress implements Selectable, Parcelable, Json {
+import java.io.Serializable;
+
+public class PostalAddress implements Selectable, Parcelable, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final Type   type;
   private final String label;
@@ -58,39 +60,39 @@ public class PostalAddress implements Selectable, Parcelable, Json {
          in.readString());
   }
 
-  public Type getType() {
+  public @NonNull Type getType() {
     return type;
   }
 
-  public String getLabel() {
+  public @Nullable String getLabel() {
     return label;
   }
 
-  public String getStreet() {
+  public @Nullable String getStreet() {
     return street;
   }
 
-  public String getPoBox() {
+  public @Nullable String getPoBox() {
     return poBox;
   }
 
-  public String getNeighborhood() {
+  public @Nullable String getNeighborhood() {
     return neighborhood;
   }
 
-  public String getCity() {
+  public @Nullable String getCity() {
     return city;
   }
 
-  public String getRegion() {
+  public @Nullable String getRegion() {
     return region;
   }
 
-  public String getPostalCode() {
+  public @Nullable String getPostalCode() {
     return postalCode;
   }
 
-  public String getCountry() {
+  public @Nullable String getCountry() {
     return country;
   }
 
@@ -105,31 +107,37 @@ public class PostalAddress implements Selectable, Parcelable, Json {
   }
 
   @Override
-  public JSONObject toJson() throws JSONException {
-    JSONObject object = new JSONObject();
-    object.put("type", type.name());
-    object.put("label", label);
-    object.put("street", street);
-    object.put("poBox", poBox);
-    object.put("neighborhood", neighborhood);
-    object.put("city", city);
-    object.put("region", region);
-    object.put("postalCode", postalCode);
-    object.put("country", country);
-    return object;
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+
+    PostalAddress that = (PostalAddress) o;
+
+    if (type != that.type) return false;
+    if (label != null ? !label.equals(that.label) : that.label != null) return false;
+    if (street != null ? !street.equals(that.street) : that.street != null) return false;
+    if (poBox != null ? !poBox.equals(that.poBox) : that.poBox != null) return false;
+    if (neighborhood != null ? !neighborhood.equals(that.neighborhood) : that.neighborhood != null)
+      return false;
+    if (city != null ? !city.equals(that.city) : that.city != null) return false;
+    if (region != null ? !region.equals(that.region) : that.region != null) return false;
+    if (postalCode != null ? !postalCode.equals(that.postalCode) : that.postalCode != null)
+      return false;
+    return country != null ? country.equals(that.country) : that.country == null;
   }
 
-  public static PostalAddress fromJson(@NonNull JSONObject original) throws JSONException {
-    JsonUtils.SaneJSONObject object = new JsonUtils.SaneJSONObject(original);
-    return new PostalAddress(Type.valueOf(object.getString("type")),
-                             object.getString("label"),
-                             object.getString("street"),
-                             object.getString("poBox"),
-                             object.getString("neighborhood"),
-                             object.getString("city"),
-                             object.getString("region"),
-                             object.getString("postalCode"),
-                             object.getString("country"));
+  @Override
+  public int hashCode() {
+    int result = type != null ? type.hashCode() : 0;
+    result = 31 * result + (label != null ? label.hashCode() : 0);
+    result = 31 * result + (street != null ? street.hashCode() : 0);
+    result = 31 * result + (poBox != null ? poBox.hashCode() : 0);
+    result = 31 * result + (neighborhood != null ? neighborhood.hashCode() : 0);
+    result = 31 * result + (city != null ? city.hashCode() : 0);
+    result = 31 * result + (region != null ? region.hashCode() : 0);
+    result = 31 * result + (postalCode != null ? postalCode.hashCode() : 0);
+    result = 31 * result + (country != null ? country.hashCode() : 0);
+    return result;
   }
 
   @Override

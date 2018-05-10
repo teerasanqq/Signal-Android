@@ -16,12 +16,6 @@ import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
 import org.thoughtcrime.securesms.attachments.PointerAttachment;
-import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.ContactAvatar;
-import org.thoughtcrime.securesms.contactshare.model.Email;
-import org.thoughtcrime.securesms.contactshare.model.Name;
-import org.thoughtcrime.securesms.contactshare.model.Phone;
-import org.thoughtcrime.securesms.contactshare.model.PostalAddress;
 import org.thoughtcrime.securesms.crypto.IdentityKeyUtil;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
 import org.thoughtcrime.securesms.crypto.storage.SignalProtocolStoreImpl;
@@ -61,7 +55,9 @@ import org.thoughtcrime.securesms.sms.OutgoingTextMessage;
 import org.thoughtcrime.securesms.util.Base64;
 import org.thoughtcrime.securesms.util.GroupUtil;
 import org.thoughtcrime.securesms.util.IdentityUtil;
+import org.thoughtcrime.securesms.util.MediaUtil;
 import org.thoughtcrime.securesms.util.TextSecurePreferences;
+import org.whispersystems.jobqueue.Job;
 import org.whispersystems.jobqueue.JobParameters;
 import org.whispersystems.libsignal.DuplicateMessageException;
 import org.whispersystems.libsignal.IdentityKey;
@@ -93,7 +89,6 @@ import org.whispersystems.signalservice.api.messages.multidevice.RequestMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.SentTranscriptMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.SignalServiceSyncMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.VerifiedMessage;
-import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 
 import java.security.MessageDigest;
@@ -533,7 +528,6 @@ public class PushDecryptJob extends ContextJob {
     MmsDatabase          database       = DatabaseFactory.getMmsDatabase(context);
     Recipient            recipient      = getMessageDestination(envelope, message);
     Optional<QuoteModel> quote          = getValidatedQuote(message.getQuote());
-    List<Contact>        sharedContacts = getValidatedSharedContacts(message.getSharedContacts());
     IncomingMediaMessage mediaMessage   = new IncomingMediaMessage(Address.fromExternal(context, envelope.getSource()),
                                                                    message.getTimestamp(), -1,
                                                                    message.getExpiresInSeconds() * 1000L, false,
@@ -542,7 +536,7 @@ public class PushDecryptJob extends ContextJob {
                                                                    message.getGroupInfo(),
                                                                    message.getAttachments(),
                                                                    quote,
-                                                                   sharedContacts);
+                                                                   message.getSharedContacts().or(Collections.emptyList()));
 
     if (message.getExpiresInSeconds() != recipient.getExpireMessages()) {
       handleExpirationUpdate(envelope, message, Optional.absent());
@@ -554,9 +548,11 @@ public class PushDecryptJob extends ContextJob {
       List<DatabaseAttachment> attachments = DatabaseFactory.getAttachmentDatabase(context).getAttachmentsForMessage(insertResult.get().getMessageId());
 
       for (DatabaseAttachment attachment : attachments) {
+        Job job = MediaUtil.SHARED_CONTACT.equals(attachment.getContentType()) ? new ContactAttachmentDownloadJob(context, insertResult.get().getMessageId(), attachment.getAttachmentId(), false)
+                                                                        : new AttachmentDownloadJob(context, insertResult.get().getMessageId(), attachment.getAttachmentId(), false);
         ApplicationContext.getInstance(context)
                           .getJobManager()
-                          .add(new AttachmentDownloadJob(context, insertResult.get().getMessageId(), attachment.getAttachmentId(), false));
+                          .add(job);
       }
 
       if (smsMessageId.isPresent()) {
@@ -597,7 +593,7 @@ public class PushDecryptJob extends ContextJob {
                                                                   PointerAttachment.forPointers(message.getMessage().getAttachments()),
                                                                   message.getTimestamp(), -1,
                                                                   message.getMessage().getExpiresInSeconds() * 1000,
-                                                                  ThreadDatabase.DistributionTypes.DEFAULT, quote.orNull(), Collections.emptyList());
+                                                                  ThreadDatabase.DistributionTypes.DEFAULT, quote.orNull());
 
     mediaMessage = new OutgoingSecureMediaMessage(mediaMessage);
 
@@ -684,7 +680,7 @@ public class PushDecryptJob extends ContextJob {
     long              messageId;
 
     if (recipient.getAddress().isGroup()) {
-      OutgoingMediaMessage outgoingMediaMessage = new OutgoingMediaMessage(recipient, new SlideDeck(), body, message.getTimestamp(), -1, expiresInMillis, ThreadDatabase.DistributionTypes.DEFAULT, null, Collections.emptyList());
+      OutgoingMediaMessage outgoingMediaMessage = new OutgoingMediaMessage(recipient, new SlideDeck(), body, message.getTimestamp(), -1, expiresInMillis, ThreadDatabase.DistributionTypes.DEFAULT, null);
       outgoingMediaMessage = new OutgoingSecureMediaMessage(outgoingMediaMessage);
 
       messageId = DatabaseFactory.getMmsDatabase(context).insertMessageOutbox(outgoingMediaMessage, threadId, false, null);
@@ -895,88 +891,6 @@ public class PushDecryptJob extends ContextJob {
                                       author,
                                       quote.get().getText(),
                                       PointerAttachment.forPointers(quote.get().getAttachments())));
-  }
-
-  private List<Contact> getValidatedSharedContacts(Optional<List<SharedContact>> sharedContacts) {
-    if (!sharedContacts.isPresent()) return Collections.emptyList();
-
-    List<Contact> contacts = new LinkedList<>();
-    for (SharedContact sharedContact : sharedContacts.get()) {
-      Name name = new Name(sharedContact.getName().getDisplay().orNull(),
-                           sharedContact.getName().getGiven().orNull(),
-                           sharedContact.getName().getFamily().orNull(),
-                           sharedContact.getName().getPrefix().orNull(),
-                           sharedContact.getName().getSuffix().orNull(),
-                           sharedContact.getName().getMiddle().orNull());
-
-      List<Phone> phoneNumbers = new LinkedList<>();
-      if (sharedContact.getPhone().isPresent()) {
-        for (SharedContact.Phone phone : sharedContact.getPhone().get()) {
-          phoneNumbers.add(new Phone(phone.getValue(),
-                                     remoteToLocalType(phone.getType()),
-                                     phone.getLabel().orNull()));
-        }
-      }
-
-      List<Email> emails = new LinkedList<>();
-      if (sharedContact.getEmail().isPresent()) {
-        for (SharedContact.Email email : sharedContact.getEmail().get()) {
-          emails.add(new Email(email.getValue(),
-                               remoteToLocalType(email.getType()),
-                               email.getLabel().orNull()));
-        }
-      }
-
-      List<PostalAddress> postalAddresses = new LinkedList<>();
-      if (sharedContact.getAddress().isPresent()) {
-        for (SharedContact.PostalAddress postalAddress : sharedContact.getAddress().get()) {
-          postalAddresses.add(new PostalAddress(remoteToLocalType(postalAddress.getType()),
-                                                postalAddress.getLabel().orNull(),
-                                                postalAddress.getStreet().orNull(),
-                                                postalAddress.getPobox().orNull(),
-                                                postalAddress.getNeighborhood().orNull(),
-                                                postalAddress.getCity().orNull(),
-                                                postalAddress.getRegion().orNull(),
-                                                postalAddress.getPostcode().orNull(),
-                                                postalAddress.getCountry().orNull()));
-        }
-      }
-
-      ContactAvatar contactAvatar = null;
-      if (sharedContact.getAvatar().isPresent()) {
-        Attachment avatarAttachment = PointerAttachment.forPointer(Optional.of(sharedContact.getAvatar().get().getAttachment())).get();
-        contactAvatar = new ContactAvatar(avatarAttachment, sharedContact.getAvatar().get().isProfile());
-      }
-
-      contacts.add(new Contact(name, sharedContact.getOrganization().orNull(), phoneNumbers, emails, postalAddresses, contactAvatar));
-    }
-    return contacts;
-  }
-
-  private Phone.Type remoteToLocalType(SharedContact.Phone.Type type) {
-    switch (type) {
-      case HOME:   return Phone.Type.HOME;
-      case MOBILE: return Phone.Type.MOBILE;
-      case WORK:   return Phone.Type.WORK;
-      default:     return Phone.Type.CUSTOM;
-    }
-  }
-
-  private Email.Type remoteToLocalType(SharedContact.Email.Type type) {
-    switch (type) {
-      case HOME:   return Email.Type.HOME;
-      case MOBILE: return Email.Type.MOBILE;
-      case WORK:   return Email.Type.WORK;
-      default:     return Email.Type.CUSTOM;
-    }
-  }
-
-  private PostalAddress.Type remoteToLocalType(SharedContact.PostalAddress.Type type) {
-    switch (type) {
-      case HOME:   return PostalAddress.Type.HOME;
-      case WORK:   return PostalAddress.Type.WORK;
-      default:     return PostalAddress.Type.CUSTOM;
-    }
   }
 
   private Optional<InsertResult> insertPlaceholder(@NonNull SignalServiceEnvelope envelope) {

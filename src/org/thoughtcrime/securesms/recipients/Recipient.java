@@ -305,6 +305,13 @@ public class Recipient implements RecipientModifiedListener {
     notifyListeners();
   }
 
+  public void setIsSystemContact(boolean isSystemContact) {
+    synchronized (this) {
+      this.isSystemContact = isSystemContact;
+    }
+    notifyListeners();
+  }
+
   public @NonNull Address getAddress() {
     return address;
   }

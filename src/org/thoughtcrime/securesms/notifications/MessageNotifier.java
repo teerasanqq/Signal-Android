@@ -428,15 +428,16 @@ public class MessageNotifier {
         threadRecipients = DatabaseFactory.getThreadDatabase(context).getRecipientForThreadId(threadId);
       }
 
+      // TODO: Make notification message work
       if (KeyCachingService.isLocked(context)) {
         body = SpanUtil.italic(context.getString(R.string.MessageNotifier_locked_message));
-      } else if (record.isMms() && ((MmsMessageRecord) record).getSharedContacts().size() > 0) {
-        String contactName = ContactUtil.getDisplayName(((MmsMessageRecord) record).getSharedContacts().get(0).getContact());
-        if (!TextUtils.isEmpty(contactName)) {
-          body = context.getString(R.string.MessageNotifier_contact_message, contactName);
-        } else {
-          body = SpanUtil.italic(context.getString(R.string.MessageNotifier_unknown_contact_message));
-        }
+//      } else if (record.isMms() && ((MmsMessageRecord) record).getSharedContacts().size() > 0) {
+//        String contactName = ContactUtil.getDisplayName(((MmsMessageRecord) record).getSharedContacts().get(0).getContact());
+//        if (!TextUtils.isEmpty(contactName)) {
+//          body = context.getString(R.string.MessageNotifier_contact_message, contactName);
+//        } else {
+//          body = SpanUtil.italic(context.getString(R.string.MessageNotifier_unknown_contact_message));
+//        }
       } else if (record.isMms() && TextUtils.isEmpty(body)) {
         body = SpanUtil.italic(context.getString(R.string.MessageNotifier_media_message));
         slideDeck = ((MediaMmsMessageRecord)record).getSlideDeck();

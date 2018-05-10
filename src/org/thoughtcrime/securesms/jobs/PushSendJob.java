@@ -1,6 +1,8 @@
 package org.thoughtcrime.securesms.jobs;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -9,6 +11,9 @@ import org.thoughtcrime.securesms.ApplicationContext;
 import org.thoughtcrime.securesms.TextSecureExpiredException;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
+import org.thoughtcrime.securesms.contactshare.model.ContactModelMapper;
+import org.thoughtcrime.securesms.contactshare.model.ContactReader;
+import org.thoughtcrime.securesms.contactshare.model.ContactStream;
 import org.thoughtcrime.securesms.contactshare.model.Email;
 import org.thoughtcrime.securesms.contactshare.model.Phone;
 import org.thoughtcrime.securesms.contactshare.model.PostalAddress;
@@ -21,12 +26,14 @@ import org.thoughtcrime.securesms.jobs.requirements.MasterSecretRequirement;
 import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader;
 import org.thoughtcrime.securesms.mms.OutgoingMediaMessage;
 import org.thoughtcrime.securesms.mms.PartAuthority;
+import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.notifications.MessageNotifier;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.util.BitmapDecodingException;
 import org.thoughtcrime.securesms.util.BitmapUtil;
 import org.thoughtcrime.securesms.util.MediaUtil;
 import org.thoughtcrime.securesms.util.TextSecurePreferences;
+import org.thoughtcrime.securesms.util.Util;
 import org.whispersystems.jobqueue.JobParameters;
 import org.whispersystems.jobqueue.requirements.NetworkRequirement;
 import org.whispersystems.libsignal.util.guava.Optional;
@@ -92,9 +99,11 @@ public abstract class PushSendJob extends SendJob {
     List<SignalServiceAttachment> attachments = new LinkedList<>();
 
     for (final Attachment attachment : parts) {
-      SignalServiceAttachment converted = getAttachmentFor(attachment);
-      if (converted != null) {
-        attachments.add(converted);
+      if (!MediaUtil.SHARED_CONTACT.equals(attachment.getContentType())) {
+        SignalServiceAttachment converted = getAttachmentFor(attachment);
+        if (converted != null) {
+          attachments.add(converted);
+        }
       }
     }
 
@@ -170,95 +179,40 @@ public abstract class PushSendJob extends SendJob {
     return Optional.of(new SignalServiceDataMessage.Quote(quoteId, new SignalServiceAddress(quoteAuthor.serialize()), quoteBody, quoteAttachments));
   }
 
-  Optional<List<SharedContact>> getSharedContactsFor(OutgoingMediaMessage message) {
-    if (message.getOutgoingContacts().isEmpty()) return Optional.absent();
+  List<SharedContact> getSharedContactsFor(List<Attachment> attachments) {
+    List<SharedContact> contacts = new LinkedList<>();
 
-    List<SharedContact> sharedContacts = new LinkedList<>();
-
-    for (Contact contact : message.getOutgoingContacts()) {
-      List<SharedContact.Phone>         phoneNumbers    = new ArrayList<>(contact.getPhoneNumbers().size());
-      List<SharedContact.Email>         emails          = new ArrayList<>(contact.getEmails().size());
-      List<SharedContact.PostalAddress> postalAddresses = new ArrayList<>(contact.getPostalAddresses().size());
-
-      for (Phone phone : contact.getPhoneNumbers()) {
-        phoneNumbers.add(new SharedContact.Phone.Builder().setValue(phone.getNumber())
-                                                          .setType(localToRemoteType(phone.getType()))
-                                                          .setLabel(phone.getLabel())
-                                                          .build());
+    for (Attachment attachment : attachments) {
+      if (!MediaUtil.SHARED_CONTACT.equals(attachment.getContentType()) || attachment.getDataUri() == null) {
+        continue;
       }
 
-      for (Email email : contact.getEmails()) {
-        emails.add(new SharedContact.Email.Builder().setValue(email.getEmail())
-                                                    .setType(localToRemoteType(email.getType()))
-                                                    .setLabel(email.getLabel())
-                                                    .build());
+      try {
+        ContactReader         reader       = new ContactReader(PartAuthority.getAttachmentStream(context, attachment.getDataUri()));
+        Contact               contact      = reader.getContact();
+        InputStream           avatarStream = reader.getAvatar();
+        SharedContact.Builder builder      = ContactModelMapper.localToRemoteBuilder(contact);
+
+        if (avatarStream != null) {
+          byte[]                  avatarBytes      = Util.readFully(avatarStream);
+          SignalServiceAttachment avatarAttachment = SignalServiceAttachment.newStreamBuilder()
+                                                                            .withContentType(MediaUtil.IMAGE_JPEG)
+                                                                            .withLength(avatarBytes.length)
+                                                                            .withStream(new ByteArrayInputStream(avatarBytes))
+                                                                            .build();
+          SharedContact.Avatar    avatar           = SharedContact.Avatar.newBuilder().withProfileFlag(contact.getAvatarState().isProfile())
+                                                                                      .withAttachment(avatarAttachment)
+                                                                                      .build();
+          builder.setAvatar(avatar);
+        }
+
+        contacts.add(builder.build());
+      } catch (IOException e) {
+        Log.w(TAG, "Exception while reading contact stream. Can't send contact.", e);
       }
-
-      for (PostalAddress postalAddress : contact.getPostalAddresses()) {
-        postalAddresses.add(new SharedContact.PostalAddress.Builder().setType(localToRemoteType(postalAddress.getType()))
-                                                                     .setLabel(postalAddress.getLabel())
-                                                                     .setStreet(postalAddress.getStreet())
-                                                                     .setPobox(postalAddress.getPoBox())
-                                                                     .setNeighborhood(postalAddress.getNeighborhood())
-                                                                     .setCity(postalAddress.getCity())
-                                                                     .setRegion(postalAddress.getRegion())
-                                                                     .setPostcode(postalAddress.getPostalCode())
-                                                                     .setCountry(postalAddress.getCountry())
-                                                                     .build());
-      }
-
-      SharedContact.Name name = new SharedContact.Name.Builder().setDisplay(contact.getName().getDisplayName())
-                                                                .setGiven(contact.getName().getGivenName())
-                                                                .setFamily(contact.getName().getFamilyName())
-                                                                .setPrefix(contact.getName().getPrefix())
-                                                                .setSuffix(contact.getName().getSuffix())
-                                                                .setMiddle(contact.getName().getMiddleName())
-                                                                .build();
-
-      SharedContact.Avatar avatar = null;
-      if (contact.getAvatar() != null) {
-        SignalServiceAttachment avatarAttachment = getAttachmentFor(contact.getAvatar().getImage());
-        avatar = new SharedContact.Avatar.Builder().withAttachment(avatarAttachment)
-                                                   .withProfileFlag(contact.getAvatar().isProfile())
-                                                   .build();
-      }
-
-      sharedContacts.add(new SharedContact.Builder().setName(name)
-                                                    .withOrganization(contact.getOrganization())
-                                                    .withPhones(phoneNumbers)
-                                                    .withEmails(emails)
-                                                    .withAddresses(postalAddresses)
-                                                    .setAvatar(avatar)
-                                                    .build());
     }
 
-    return Optional.of(sharedContacts);
-  }
-
-  private SharedContact.Phone.Type localToRemoteType(Phone.Type type) {
-    switch (type) {
-      case HOME:   return SharedContact.Phone.Type.HOME;
-      case MOBILE: return SharedContact.Phone.Type.MOBILE;
-      case WORK:   return SharedContact.Phone.Type.WORK;
-      default:     return SharedContact.Phone.Type.CUSTOM;
-    }
-  }
-
-  private SharedContact.Email.Type localToRemoteType(Email.Type type) {
-    switch (type) {
-      case HOME:   return SharedContact.Email.Type.HOME;
-      case MOBILE: return SharedContact.Email.Type.MOBILE;
-      case WORK:   return SharedContact.Email.Type.WORK;
-      default:     return SharedContact.Email.Type.CUSTOM;
-    }
-  }
-
-  private SharedContact.PostalAddress.Type localToRemoteType(PostalAddress.Type type) {
-    switch (type) {
-      case HOME: return SharedContact.PostalAddress.Type.HOME;
-      case WORK: return SharedContact.PostalAddress.Type.WORK;
-      default:   return SharedContact.PostalAddress.Type.CUSTOM;
-    }
+    return contacts;
   }
 
   protected abstract void onPushSend() throws Exception;

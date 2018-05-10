@@ -33,7 +33,6 @@ import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.sms.MessageSender;
 import org.thoughtcrime.securesms.sms.OutgoingTextMessage;
 
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -69,7 +68,7 @@ public class RemoteReplyReceiver extends BroadcastReceiver {
           long expiresIn      = recipient.getExpireMessages() * 1000L;
 
           if (recipient.isGroupRecipient()) {
-            OutgoingMediaMessage reply = new OutgoingMediaMessage(recipient, responseText.toString(), new LinkedList<>(), System.currentTimeMillis(), subscriptionId, expiresIn, 0, null, Collections.emptyList());
+            OutgoingMediaMessage reply = new OutgoingMediaMessage(recipient, responseText.toString(), new LinkedList<>(), System.currentTimeMillis(), subscriptionId, expiresIn, 0, null);
             threadId = MessageSender.send(context, reply, -1, false, null);
           } else {
             OutgoingTextMessage reply = new OutgoingTextMessage(recipient, responseText.toString(), expiresIn, subscriptionId);

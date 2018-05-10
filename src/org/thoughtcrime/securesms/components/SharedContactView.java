@@ -12,20 +12,31 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.annimon.stream.Stream;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
 import org.thoughtcrime.securesms.R;
-import org.thoughtcrime.securesms.contactshare.ContactRepository.ContactInfo;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.SharedContactViewModel.ContactViewDetails;
+import org.thoughtcrime.securesms.contactshare.SharedContactInjector;
+import org.thoughtcrime.securesms.contactshare.SharedContactInjector.ResolvedContact;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.Phone;
-import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
+import org.thoughtcrime.securesms.database.RecipientDatabase;
 import org.thoughtcrime.securesms.mms.GlideRequests;
+import org.thoughtcrime.securesms.mms.SharedContactSlide;
+import org.thoughtcrime.securesms.recipients.Recipient;
+import org.thoughtcrime.securesms.recipients.RecipientModifiedListener;
+import org.thoughtcrime.securesms.util.Util;
 
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
-public class SharedContactView extends LinearLayout {
+public class SharedContactView extends LinearLayout implements SharedContactInjector.Target,
+                                                               RecipientModifiedListener {
 
   private ImageView avatarView;
   private TextView  nameView;
@@ -33,7 +44,13 @@ public class SharedContactView extends LinearLayout {
   private TextView  actionButtonView;
   private ViewGroup actionButtonContainerView;
 
-  private EventListener eventListener;
+  private SharedContactSlide sharedContactSlide;
+  private Contact            contact;
+  private Locale             locale;
+  private GlideRequests      glideRequests;
+  private EventListener      eventListener;
+
+  private final Map<String, Recipient> activeRecipients = new HashMap<>();
 
   public SharedContactView(Context context) {
     super(context);
@@ -66,25 +83,58 @@ public class SharedContactView extends LinearLayout {
     actionButtonContainerView = findViewById(R.id.contact_action_button_container);
   }
 
-  public void setContact(@NonNull ContactViewDetails contactDetails, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-    Contact contact       = contactDetails.getContactInfo().getContact();
-    Phone   displayNumber = ContactUtil.getDisplayNumber(contactDetails.getContactInfo());
+  public void setContact(@NonNull SharedContactSlide sharedContactSlide, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
+    this.sharedContactSlide = sharedContactSlide;
+    this.glideRequests      = glideRequests;
+    this.locale             = locale;
 
-    presentHeader(contact, displayNumber, glideRequests, locale);
+    Stream.of(activeRecipients.values()).forEach(recipient ->  recipient.removeListener(this));
+    this.activeRecipients.clear();
 
-    switch (contactDetails.getState()) {
-      case NEW:
-        presentNewContactState(contact);
-        break;
-      case ADDED:
-        presentAddedContactState(contactDetails.getContactInfo(), displayNumber);
-        break;
+    SharedContactInjector.load(getContext(), sharedContactSlide, this);
+  }
+
+  public void setEventListener(@NonNull EventListener eventListener) {
+    this.eventListener = eventListener;
+  }
+
+  public @NonNull View getAvatarView() {
+    return avatarView;
+  }
+
+  @Override
+  public void setResolvedContact(@Nullable ResolvedContact resolvedContact) {
+
+    if (resolvedContact != null) {
+      if (!Util.equals(this.contact, resolvedContact.getContact())) {
+        this.contact = resolvedContact.getContact();
+        presentContact(resolvedContact.getContact());
+        presentAvatar(resolvedContact.getAvatarStream());
+      }
+      presentActionButtons(resolvedContact.getRecipients());
+    } else {
+      clearView();
     }
   }
 
-  private void presentHeader(@NonNull Contact contact, @Nullable Phone displayNumber, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-    if (contact.getAvatar() != null && contact.getAvatar().getImage().getDataUri() != null) {
-      glideRequests.load(new DecryptableUri(contact.getAvatar().getImage().getDataUri()))
+  @Override
+  public void onModified(Recipient recipient) {
+    Util.runOnMain(() -> presentActionButtons(Collections.singletonList(recipient)));
+  }
+
+  private void presentContact(@Nullable Contact contact) {
+    if (contact != null) {
+      nameView.setText(ContactUtil.getDisplayName(contact));
+      numberView.setText(ContactUtil.getDisplayNumber(contact, locale));
+    } else {
+      nameView.setText("");
+      numberView.setText("");
+    }
+  }
+
+  private void presentAvatar(@Nullable InputStream inputStream) {
+    if (inputStream != null) {
+      glideRequests.load(inputStream)
                    .fallback(R.drawable.ic_contact_picture)
                    .circleCrop()
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -95,65 +145,63 @@ public class SharedContactView extends LinearLayout {
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                    .into(avatarView);
     }
-
-    nameView.setText(ContactUtil.getDisplayName(contact));
-
-    if (displayNumber != null) {
-      numberView.setText(ContactUtil.getPrettyPhoneNumber(displayNumber, locale));
-    } else if (contact.getEmails().size() > 0) {
-      numberView.setText(contact.getEmails().get(0).getEmail());
-    } else {
-      numberView.setText("");
-    }
   }
 
-  private void presentNewContactState(@NonNull Contact contact) {
-    actionButtonView.setText(R.string.SharedContactView_add_to_contacts);
-    actionButtonView.setOnClickListener(v -> {
-      if (eventListener != null) {
-        eventListener.onAddToContactsClicked(contact);
+  private void presentActionButtons(@NonNull List<Recipient> recipients) {
+    for (Recipient recipient : recipients) {
+      activeRecipients.put(recipient.getAddress().serialize(), recipient);
+    }
+
+    List<Recipient> pushUsers   = new ArrayList<>(recipients.size());
+    List<Recipient> systemUsers = new ArrayList<>(recipients.size());
+
+    for (Recipient recipient : activeRecipients.values()) {
+      recipient.addListener(this);
+
+      if (recipient.getRegistered() == RecipientDatabase.RegisteredState.REGISTERED) {
+        pushUsers.add(recipient);
+      } else if (recipient.isSystemContact()) {
+        systemUsers.add(recipient);
       }
-    });
-  }
-
-  private void presentAddedContactState(@NonNull ContactInfo contactInfo, @Nullable Phone displayNumber) {
-    if (displayNumber == null) {
-      actionButtonContainerView.setVisibility(GONE);
-      return;
     }
 
-    actionButtonContainerView.setVisibility(VISIBLE);
-
-    if (contactInfo.isPush(displayNumber)) {
+    if (!pushUsers.isEmpty()) {
       actionButtonView.setText(R.string.SharedContactView_message);
-
       actionButtonView.setOnClickListener(v -> {
         if (eventListener != null) {
-          eventListener.onMessageClicked(displayNumber);
+          eventListener.onMessageClicked(pushUsers);
+        }
+      });
+    } else if (!systemUsers.isEmpty()) {
+      actionButtonView.setText(R.string.SharedContactView_invite_to_signal);
+      actionButtonView.setOnClickListener(v -> {
+        if (eventListener != null) {
+          eventListener.onInviteClicked(systemUsers);
         }
       });
     } else {
-      actionButtonView.setText(R.string.SharedContactView_invite_to_signal);
-
+      actionButtonView.setText(R.string.SharedContactView_add_to_contacts);
       actionButtonView.setOnClickListener(v -> {
         if (eventListener != null) {
-          eventListener.onInviteClicked(displayNumber);
+          eventListener.onAddToContactsClicked(sharedContactSlide, contact);
         }
       });
     }
   }
 
-  public View getAvatarView() {
-    return avatarView;
-  }
+  private void clearView() {
+    nameView.setText("");
+    numberView.setText("");
 
-  public void setEventListener(EventListener listener) {
-    this.eventListener = listener;
+    glideRequests.load(R.drawable.ic_contact_picture)
+        .circleCrop()
+        .diskCacheStrategy(DiskCacheStrategy.ALL)
+        .into(avatarView);
   }
 
   public interface EventListener {
-    void onAddToContactsClicked(@NonNull Contact contact);
-    void onInviteClicked(@NonNull Phone phoneNumber);
-    void onMessageClicked(@NonNull Phone phoneNumber);
+    void onAddToContactsClicked(@NonNull SharedContactSlide sharedContactSlide, @NonNull Contact contact);
+    void onInviteClicked(@NonNull List<Recipient> choices);
+    void onMessageClicked(@NonNull List<Recipient> choices);
   }
 }
