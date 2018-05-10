@@ -18,6 +18,7 @@ import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
 import org.thoughtcrime.securesms.attachments.PointerAttachment;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.ContactAvatar;
+import org.thoughtcrime.securesms.contactshare.model.ContactModelMapper;
 import org.thoughtcrime.securesms.contactshare.model.Email;
 import org.thoughtcrime.securesms.contactshare.model.Name;
 import org.thoughtcrime.securesms.contactshare.model.Phone;
@@ -900,83 +901,7 @@ public class PushDecryptJob extends ContextJob {
   private List<Contact> getValidatedSharedContacts(Optional<List<SharedContact>> sharedContacts) {
     if (!sharedContacts.isPresent()) return Collections.emptyList();
 
-    List<Contact> contacts = new LinkedList<>();
-    for (SharedContact sharedContact : sharedContacts.get()) {
-      Name name = new Name(sharedContact.getName().getDisplay().orNull(),
-                           sharedContact.getName().getGiven().orNull(),
-                           sharedContact.getName().getFamily().orNull(),
-                           sharedContact.getName().getPrefix().orNull(),
-                           sharedContact.getName().getSuffix().orNull(),
-                           sharedContact.getName().getMiddle().orNull());
-
-      List<Phone> phoneNumbers = new LinkedList<>();
-      if (sharedContact.getPhone().isPresent()) {
-        for (SharedContact.Phone phone : sharedContact.getPhone().get()) {
-          phoneNumbers.add(new Phone(phone.getValue(),
-                                     remoteToLocalType(phone.getType()),
-                                     phone.getLabel().orNull()));
-        }
-      }
-
-      List<Email> emails = new LinkedList<>();
-      if (sharedContact.getEmail().isPresent()) {
-        for (SharedContact.Email email : sharedContact.getEmail().get()) {
-          emails.add(new Email(email.getValue(),
-                               remoteToLocalType(email.getType()),
-                               email.getLabel().orNull()));
-        }
-      }
-
-      List<PostalAddress> postalAddresses = new LinkedList<>();
-      if (sharedContact.getAddress().isPresent()) {
-        for (SharedContact.PostalAddress postalAddress : sharedContact.getAddress().get()) {
-          postalAddresses.add(new PostalAddress(remoteToLocalType(postalAddress.getType()),
-                                                postalAddress.getLabel().orNull(),
-                                                postalAddress.getStreet().orNull(),
-                                                postalAddress.getPobox().orNull(),
-                                                postalAddress.getNeighborhood().orNull(),
-                                                postalAddress.getCity().orNull(),
-                                                postalAddress.getRegion().orNull(),
-                                                postalAddress.getPostcode().orNull(),
-                                                postalAddress.getCountry().orNull()));
-        }
-      }
-
-      ContactAvatar contactAvatar = null;
-      if (sharedContact.getAvatar().isPresent()) {
-        Attachment avatarAttachment = PointerAttachment.forPointer(Optional.of(sharedContact.getAvatar().get().getAttachment())).get();
-        contactAvatar = new ContactAvatar(avatarAttachment, sharedContact.getAvatar().get().isProfile());
-      }
-
-      contacts.add(new Contact(name, sharedContact.getOrganization().orNull(), phoneNumbers, emails, postalAddresses, contactAvatar));
-    }
-    return contacts;
-  }
-
-  private Phone.Type remoteToLocalType(SharedContact.Phone.Type type) {
-    switch (type) {
-      case HOME:   return Phone.Type.HOME;
-      case MOBILE: return Phone.Type.MOBILE;
-      case WORK:   return Phone.Type.WORK;
-      default:     return Phone.Type.CUSTOM;
-    }
-  }
-
-  private Email.Type remoteToLocalType(SharedContact.Email.Type type) {
-    switch (type) {
-      case HOME:   return Email.Type.HOME;
-      case MOBILE: return Email.Type.MOBILE;
-      case WORK:   return Email.Type.WORK;
-      default:     return Email.Type.CUSTOM;
-    }
-  }
-
-  private PostalAddress.Type remoteToLocalType(SharedContact.PostalAddress.Type type) {
-    switch (type) {
-      case HOME:   return PostalAddress.Type.HOME;
-      case WORK:   return PostalAddress.Type.WORK;
-      default:     return PostalAddress.Type.CUSTOM;
-    }
+    return ContactModelMapper.remoteToLocal(sharedContacts.get());
   }
 
   private Optional<InsertResult> insertPlaceholder(@NonNull SignalServiceEnvelope envelope) {
