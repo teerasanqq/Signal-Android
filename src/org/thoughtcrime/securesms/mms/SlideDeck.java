@@ -122,4 +122,14 @@ public class SlideDeck {
 
     return null;
   }
+
+  public @Nullable SharedContactSlide getSharedContactSlide() {
+    for (Slide slide: slides) {
+      if (slide.hasSharedContact()) {
+        return (SharedContactSlide) slide;
+      }
+    }
+
+    return null;
+  }
 }

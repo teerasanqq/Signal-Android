@@ -22,8 +22,6 @@ import android.support.annotation.Nullable;
 import android.text.SpannableString;
 
 import org.thoughtcrime.securesms.R;
-import org.thoughtcrime.securesms.contactshare.model.AttachmentContactRetriever;
-import org.thoughtcrime.securesms.contactshare.model.ContactRetriever;
 import org.thoughtcrime.securesms.database.MmsDatabase;
 import org.thoughtcrime.securesms.database.SmsDatabase.Status;
 import org.thoughtcrime.securesms.database.documents.IdentityKeyMismatch;
@@ -56,11 +54,11 @@ public class MediaMmsMessageRecord extends MmsMessageRecord {
                                List<IdentityKeyMismatch> mismatches,
                                List<NetworkFailure> failures, int subscriptionId,
                                long expiresIn, long expireStarted, int readReceiptCount,
-                               @Nullable Quote quote, @NonNull List<ContactRetriever> sharedContacts)
+                               @Nullable Quote quote)
   {
     super(context, id, body, conversationRecipient, individualRecipient, recipientDeviceId, dateSent,
           dateReceived, threadId, Status.STATUS_NONE, deliveryReceiptCount, mailbox, mismatches, failures,
-          subscriptionId, expiresIn, expireStarted, slideDeck, readReceiptCount, quote, sharedContacts);
+          subscriptionId, expiresIn, expireStarted, slideDeck, readReceiptCount, quote);
 
     this.context   = context.getApplicationContext();
     this.partCount = partCount;

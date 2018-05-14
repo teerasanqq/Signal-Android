@@ -11,32 +11,36 @@ import org.json.JSONObject;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.database.Address;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Contact implements Parcelable, ContactRetriever {
+public class Contact implements Parcelable, ContactRetriever, Serializable {
 
   private final Name                name;
   private final String              organization;
   private final List<Phone>         phoneNumbers;
   private final List<Email>         emails;
   private final List<PostalAddress> postalAddresses;
-  private final ContactAvatar       avatar;
+  private final AvatarState         avatarState;
+  private final int                 avatarSize;
 
   public Contact(@NonNull  Name                name,
                  @Nullable String              organization,
                  @NonNull  List<Phone>         phoneNumbers,
                  @NonNull  List<Email>         emails,
                  @NonNull  List<PostalAddress> postalAddresses,
-                 @Nullable ContactAvatar       avatar)
+                 @NonNull  AvatarState         avatarState,
+                           int                 avatarSize)
   {
     this.name            = name;
     this.organization    = organization;
     this.phoneNumbers    = Collections.unmodifiableList(phoneNumbers);
     this.emails          = Collections.unmodifiableList(emails);
     this.postalAddresses = Collections.unmodifiableList(postalAddresses);
-    this.avatar = avatar;
+    this.avatarState     = avatarState;
+    this.avatarSize      = avatarSize;
   }
 
   private Contact(Parcel in) {
@@ -45,7 +49,8 @@ public class Contact implements Parcelable, ContactRetriever {
          in.createTypedArrayList(Phone.CREATOR),
          in.createTypedArrayList(Email.CREATOR),
          in.createTypedArrayList(PostalAddress.CREATOR),
-         in.readParcelable(Address.class.getClassLoader()));
+         AvatarState.valueOf(in.readString()),
+         in.readInt());
   }
 
   @Override
@@ -73,63 +78,12 @@ public class Contact implements Parcelable, ContactRetriever {
     return postalAddresses;
   }
 
-  public @Nullable ContactAvatar getAvatar() {
-    return avatar;
+  public @NonNull AvatarState getAvatarState() {
+    return avatarState;
   }
 
-  public String toJson() throws JSONException {
-    JSONObject object = new JSONObject();
-    object.put("name", name.toJson());
-    object.put("organization", organization);
-    object.put("phoneNumbers", listToJson(phoneNumbers));
-    object.put("emails", listToJson(emails));
-    object.put("postalAddresses", listToJson(postalAddresses));
-
-    if (avatar != null) {
-      object.put("avatar", avatar.toJson());
-    }
-
-    return object.toString();
-  }
-
-  public static Contact fromJson(@NonNull String json, @Nullable Attachment avatar) throws JSONException {
-    JSONObject object = new JSONObject(json);
-
-    Name name  = Name.fromJson(object.getJSONObject("name"));
-    String org = object.has("organization") ? object.getString("organization") : null;
-
-    JSONArray phoneNumbersJson = object.getJSONArray("phoneNumbers");
-    List<Phone> phoneNumbers = new ArrayList<>(phoneNumbersJson.length());
-    for (int i = 0; i < phoneNumbersJson.length(); i++) {
-      phoneNumbers.add(Phone.fromJson(phoneNumbersJson.getJSONObject(i)));
-    }
-
-    JSONArray emailsJson = object.getJSONArray("emails");
-    List<Email> emails = new ArrayList<>(emailsJson.length());
-    for (int i = 0; i < emailsJson.length(); i++) {
-      emails.add(Email.fromJson(emailsJson.getJSONObject(i)));
-    }
-
-    JSONArray postalAddressesJson = object.getJSONArray("postalAddresses");
-    List<PostalAddress> postalAddresses = new ArrayList<>(postalAddressesJson.length());
-    for (int i = 0; i < postalAddressesJson.length(); i++) {
-      postalAddresses.add(PostalAddress.fromJson(postalAddressesJson.getJSONObject(i)));
-    }
-
-    ContactAvatar contactAvatar = null;
-    if (avatar != null && !object.isNull("avatar")) {
-      contactAvatar = ContactAvatar.fromJson(object.getJSONObject("avatar"), avatar);
-    }
-
-    return new Contact(name, org, phoneNumbers, emails, postalAddresses, contactAvatar);
-  }
-
-  private JSONArray listToJson(@NonNull List<? extends Json> objects) throws JSONException {
-    JSONArray array = new JSONArray();
-    for (Json object : objects) {
-      array.put(object.toJson());
-    }
-    return array;
+  public int getAvatarSize() {
+    return avatarSize;
   }
 
   @Override
@@ -144,7 +98,8 @@ public class Contact implements Parcelable, ContactRetriever {
     dest.writeTypedList(phoneNumbers);
     dest.writeTypedList(emails);
     dest.writeTypedList(postalAddresses);
-    dest.writeParcelable(avatar, flags);
+    dest.writeString(avatarState.name());
+    dest.writeInt(avatarSize);
   }
 
   public static final Creator<Contact> CREATOR = new Creator<Contact>() {
@@ -159,4 +114,18 @@ public class Contact implements Parcelable, ContactRetriever {
     }
   };
 
+  public enum AvatarState {
+
+    NONE(false), PROFILE(true), SYSTEM(false);
+
+    private final boolean isProfile;
+
+    AvatarState(boolean isProfile) {
+      this.isProfile = isProfile;
+    }
+
+    public boolean isProfile() {
+      return isProfile;
+    }
+  }
 }

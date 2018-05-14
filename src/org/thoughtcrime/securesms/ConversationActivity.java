@@ -100,6 +100,7 @@ import org.thoughtcrime.securesms.contactshare.ContactShareEditActivity;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
 import org.thoughtcrime.securesms.contactshare.RetrieveContactTask;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
+import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.contactshare.model.Phone;
 import org.thoughtcrime.securesms.crypto.IdentityKeyParcelable;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
@@ -434,6 +435,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
         addAttachmentContactInfo(data.getData());
       }
       break;
+      // TODO(greyson): Rename to something better?
     case GET_CONTACT_INFO:
       sendContactShareInfo(data.getParcelableArrayListExtra(ContactShareEditActivity.KEY_CONTACTS));
       break;
@@ -785,7 +787,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
                                            .setType(GroupContext.Type.QUIT)
                                            .build();
 
-        OutgoingGroupMediaMessage outgoingMessage = new OutgoingGroupMediaMessage(getRecipient(), context, null, System.currentTimeMillis(), 0, null, Collections.emptyList());
+        OutgoingGroupMediaMessage outgoingMessage = new OutgoingGroupMediaMessage(getRecipient(), context, null, System.currentTimeMillis(), 0, null);
         MessageSender.send(self, outgoingMessage, threadId, false, null);
         DatabaseFactory.getGroupDatabase(self).remove(groupId, Address.fromSerialized(TextSecurePreferences.getLocalNumber(self)));
         initializeEnabledCheck();
@@ -1410,12 +1412,12 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     else if (contactData.numbers.size() > 1)  selectContactInfo(contactData);
   }
 
-  private void sendContactShareInfo(List<Contact> contacts) {
+  private void sendContactShareInfo(List<ContactWithAvatar> contactsWithAvatars) {
     int        subscriptionId = sendButton.getSelectedTransport().getSimSubscriptionId().or(-1);
     long       expiresIn      = recipient.getExpireMessages() * 1000L;
     boolean    initiating     = threadId == -1;
 
-    sendMediaMessage(isSmsForced(), "", new SlideDeck(), expiresIn, subscriptionId, initiating, contacts);
+    sendMediaMessage(isSmsForced(), "", new SlideDeck(), expiresIn, subscriptionId, initiating, contactsWithAvatars);
   }
 
   private void selectContactInfo(ContactData contactData) {
@@ -1713,14 +1715,16 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     return sendMediaMessage(forceSms, body, slideDeck, expiresIn, subscriptionId, initiating, Collections.emptyList());
   }
 
-  private ListenableFuture<Void> sendMediaMessage(final    boolean       forceSms,
-                                                           String        body,
-                                                           SlideDeck     slideDeck,
-                                                  final    long          expiresIn,
-                                                  final    int           subscriptionId,
-                                                  final    boolean       initiating,
-                                                  @NonNull List<Contact> contacts)
+  // TODO(greyson): Make this prettier
+  private ListenableFuture<Void> sendMediaMessage(final    boolean                 forceSms,
+                                                           String                  body,
+                                                           SlideDeck               slideDeck,
+                                                  final    long                    expiresIn,
+                                                  final    int                     subscriptionId,
+                                                  final    boolean                 initiating,
+                                                  @NonNull List<ContactWithAvatar> contacts)
   {
+    // TODO(greyson): Save contacts to attachment manager?
     OutgoingMediaMessage outgoingMessageCandidate = new OutgoingMediaMessage(recipient,
                                                                              slideDeck,
                                                                              body,
@@ -1728,8 +1732,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
                                                                              subscriptionId,
                                                                              expiresIn,
                                                                              distributionType,
-                                                                             inputPanel.getQuote().orNull(),
-                                                                             contacts);
+                                                                             inputPanel.getQuote().orNull());
 
     final SettableFuture<Void> future  = new SettableFuture<>();
     final Context              context = getApplicationContext();
@@ -2115,39 +2118,12 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
       author = messageRecord.getIndividualRecipient();
     }
 
-    if (messageRecord.isMms() && ((MmsMessageRecord) messageRecord).getSharedContacts().size() > 0) {
-      new RetrieveContactTask(((MmsMessageRecord) messageRecord).getSharedContacts().get(0), contact -> {
-        if (contact == null) return;
-
-        SlideDeck slideDeck = new SlideDeck();
-        if (contact.getAvatar() != null) {
-          slideDeck.addSlide(new ImageSlide(getApplicationContext(), contact.getAvatar().getImage()));
-        }
-
-        StringBuilder body = new StringBuilder();
-
-        body.append(ContactUtil.getDisplayName(contact));
-
-        Phone displayNumber = ContactUtil.getDisplayNumber(contact);
-        if (displayNumber != null) {
-          body.append('\n').append(ContactUtil.getPrettyPhoneNumber(displayNumber, dynamicLanguage.getCurrentLocale()));
-        } else if (contact.getEmails().size() > 0) {
-          body.append('\n').append(contact.getEmails().get(0).getEmail());
-        }
-
-        inputPanel.setQuote(GlideApp.with(this),
-                            messageRecord.getDateSent(),
-                            author,
-                            body.toString(),
-                            slideDeck);
-      }).execute();
-    } else {
-      inputPanel.setQuote(GlideApp.with(this),
-                          messageRecord.getDateSent(),
-                          author,
-                          messageRecord.getBody(),
-                          messageRecord.isMms() ? ((MmsMessageRecord) messageRecord).getSlideDeck() : new SlideDeck());
-    }
+    // TODO: Quote stuff
+    inputPanel.setQuote(GlideApp.with(this),
+                        messageRecord.getDateSent(),
+                        author,
+                        messageRecord.getBody(),
+                        messageRecord.isMms() ? ((MmsMessageRecord) messageRecord).getSlideDeck() : new SlideDeck());
   }
 
   @Override

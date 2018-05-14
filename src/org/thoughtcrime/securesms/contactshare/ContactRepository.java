@@ -1,12 +1,9 @@
 package org.thoughtcrime.securesms.contactshare;
 
 import android.content.ContentProviderOperation;
-import android.content.ContentProviderResult;
 import android.content.Context;
-import android.content.OperationApplicationException;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.RemoteException;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -14,13 +11,13 @@ import android.support.annotation.WorkerThread;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.annimon.stream.Stream;
-
 import org.thoughtcrime.securesms.contacts.ContactsDatabase;
 import org.thoughtcrime.securesms.contacts.avatars.ContactPhoto;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
+import org.thoughtcrime.securesms.contactshare.model.Contact.AvatarState;
 import org.thoughtcrime.securesms.contactshare.model.ContactAvatar;
 import org.thoughtcrime.securesms.contactshare.model.ContactRetriever;
+import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.contactshare.model.Email;
 import org.thoughtcrime.securesms.contactshare.model.Name;
 import org.thoughtcrime.securesms.contactshare.model.Phone;
@@ -39,12 +36,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executor;
 
 public class ContactRepository {
@@ -70,16 +65,16 @@ public class ContactRepository {
     this.threadDatabase   = threadDatabase;
   }
 
-  void getContacts(@NonNull List<Long> contactIds, @NonNull ValueCallback<List<Contact>> callback) {
+  void getContactsWithAvatars(@NonNull List<Long> contactIds, @NonNull ValueCallback<List<ContactWithAvatar>> callback) {
     executor.execute(() -> {
-      List<Contact> contacts = new ArrayList<>(contactIds.size());
+      List<ContactWithAvatar> contactsWithAvatars = new ArrayList<>(contactIds.size());
       for (long id : contactIds) {
-        Contact contact = getContact(id);
-        if (contact != null) {
-          contacts.add(contact);
+        ContactWithAvatar contactWithAvatar = getContactWithAvatar(id);
+        if (contactWithAvatar != null) {
+          contactsWithAvatars.add(contactWithAvatar);
         }
       }
-      callback.onComplete(contacts);
+      callback.onComplete(contactsWithAvatars);
     });
   }
 
@@ -91,98 +86,100 @@ public class ContactRepository {
 
   void saveAsNewContact(@NonNull Contact contact, @NonNull ContactUpdateCallback callback) {
     executor.execute(() -> {
-      ArrayList<ContentProviderOperation> ops = buildNewContactOperations(contact);
-
-      try {
-        ContentProviderResult[] results = context.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
-        if (results.length == 0) {
-          Log.e(TAG, "Failed to insert a system contact - no successful results.");
-          callback.onComplete(null);
-          return;
-        }
-
-        long rawContactId = ContactUtil.getContactIdFromUri(results[0].uri);
-        long contactId    = contactsDatabase.getContactIdFromRawContactId(rawContactId);
-
-        if (contactId <= 0) {
-          Log.e(TAG, "Failed to insert a system contact - invalid ID.");
-          callback.onComplete(null);
-          return;
-        }
-
-        Contact newContact = getContact(contactId);
-
-        if (newContact == null) {
-          Log.e(TAG, "Inserted a new contact in the system, but failed to retrieve it. Likely failed to save some necessary data, like the name. Deleting bad system contact.");
-          boolean deleteSuccess = contactsDatabase.deleteContact(rawContactId);
-          Log.e(TAG, "Successfully deleted bad contact? " + Boolean.toString(deleteSuccess));
-
-          callback.onComplete(null);
-          return;
-        }
-
-        callback.onComplete(buildContactInfo(newContact));
-
-      } catch (RemoteException | OperationApplicationException e) {
-        Log.e(TAG,"Failed to insert a system contact due to an exception.", e);
-        callback.onComplete(null);
-      }
+      callback.onComplete(null);
+//      ArrayList<ContentProviderOperation> ops = buildNewContactOperations(contact);
+//
+//      try {
+//        ContentProviderResult[] results = context.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+//        if (results.length == 0) {
+//          Log.e(TAG, "Failed to insert a system contact - no successful results.");
+//          callback.onComplete(null);
+//          return;
+//        }
+//
+//        long rawContactId = ContactUtil.getContactIdFromUri(results[0].uri);
+//        long contactId    = contactsDatabase.getContactIdFromRawContactId(rawContactId);
+//
+//        if (contactId <= 0) {
+//          Log.e(TAG, "Failed to insert a system contact - invalid ID.");
+//          callback.onComplete(null);
+//          return;
+//        }
+//
+//        Contact newContact = getContact(contactId);
+//
+//        if (newContact == null) {
+//          Log.e(TAG, "Inserted a new contact in the system, but failed to retrieve it. Likely failed to save some necessary data, like the name. Deleting bad system contact.");
+//          boolean deleteSuccess = contactsDatabase.deleteContact(rawContactId);
+//          Log.e(TAG, "Successfully deleted bad contact? " + Boolean.toString(deleteSuccess));
+//
+//          callback.onComplete(null);
+//          return;
+//        }
+//
+//        callback.onComplete(buildContactInfo(newContact));
+//
+//      } catch (RemoteException | OperationApplicationException e) {
+//        Log.e(TAG,"Failed to insert a system contact due to an exception.", e);
+//        callback.onComplete(null);
+//      }
     });
   }
 
   void saveDetailsToExistingContact(long contactId, @NonNull Contact contact, @NonNull ContactUpdateCallback callback) {
     executor.execute(() -> {
-      Contact existing = getContact(contactId);
-
-      if (existing == null) {
-        Log.w(TAG, "Failed to find the contact we're saving to.");
-        callback.onComplete(null);
-        return;
-      }
-
-      long rawContactId = contactsDatabase.getRawContactIdFromContactId(contactId);
-      if (rawContactId <= 0) {
-        Log.w(TAG, "Failed to retrieve a raw contact ID for the contact we're saving to.");
-        callback.onComplete(null);
-        return;
-      }
-
-      ContactDiff contactDiff = buildContactDiff(existing, contact);
-
-      ArrayList<ContentProviderOperation> ops = new ArrayList<>();
-      for (Phone phone : contactDiff.getPhoneNumbers()) {
-        ops.add(getPhoneInsertOperation(phone, rawContactId));
-      }
-
-      for (Email email : contactDiff.getEmails()) {
-        ops.add(getEmailInsertOperation(email, rawContactId));
-      }
-
-      for (PostalAddress postalAddress : contactDiff.getPostalAddresses()) {
-        ops.add(getPostalAddressInsertOperation(postalAddress, rawContactId));
-      }
-
-      if (contactDiff.getOrganization() != null) {
-        ops.add(getOrganizationInsertOperation(contactDiff.getOrganization(), rawContactId));
-      }
-
-      if (contactDiff.getAvatar() != null && contactDiff.getAvatar().getImage().getDataUri() != null) {
-        ContentProviderOperation op = getAvatarInsertOperation(contactDiff.getAvatar().getImage().getDataUri(), rawContactId);
-        if (op != null) {
-          ops.add(op);
-        }
-      }
-
-      try {
-        context.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
-      } catch (RemoteException | OperationApplicationException e) {
-        Log.e(TAG, "Failed to update the existing contact with new details.", e);
-        callback.onComplete(null);
-        return;
-      }
-
-      Contact updated = getContact(contactId);
-      callback.onComplete(updated != null ? buildContactInfo(updated) : null);
+      callback.onComplete(null);
+//      Contact existing = getContact(contactId);
+//
+//      if (existing == null) {
+//        Log.w(TAG, "Failed to find the contact we're saving to.");
+//        callback.onComplete(null);
+//        return;
+//      }
+//
+//      long rawContactId = contactsDatabase.getRawContactIdFromContactId(contactId);
+//      if (rawContactId <= 0) {
+//        Log.w(TAG, "Failed to retrieve a raw contact ID for the contact we're saving to.");
+//        callback.onComplete(null);
+//        return;
+//      }
+//
+//      ContactDiff contactDiff = buildContactDiff(existing, contact);
+//
+//      ArrayList<ContentProviderOperation> ops = new ArrayList<>();
+//      for (Phone phone : contactDiff.getPhoneNumbers()) {
+//        ops.add(getPhoneInsertOperation(phone, rawContactId));
+//      }
+//
+//      for (Email email : contactDiff.getEmails()) {
+//        ops.add(getEmailInsertOperation(email, rawContactId));
+//      }
+//
+//      for (PostalAddress postalAddress : contactDiff.getPostalAddresses()) {
+//        ops.add(getPostalAddressInsertOperation(postalAddress, rawContactId));
+//      }
+//
+//      if (contactDiff.getOrganization() != null) {
+//        ops.add(getOrganizationInsertOperation(contactDiff.getOrganization(), rawContactId));
+//      }
+//
+//      if (contactDiff.getAvatar() != null) {
+//        ContentProviderOperation op = getAvatarInsertOperation(contactDiff.getAvatar(), rawContactId);
+//        if (op != null) {
+//          ops.add(op);
+//        }
+//      }
+//
+//      try {
+//        context.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+//      } catch (RemoteException | OperationApplicationException e) {
+//        Log.e(TAG, "Failed to update the existing contact with new details.", e);
+//        callback.onComplete(null);
+//        return;
+//      }
+//
+//      Contact updated = getContact(contactId);
+//      callback.onComplete(updated != null ? buildContactInfo(updated) : null);
     });
   }
 
@@ -199,91 +196,65 @@ public class ContactRepository {
 
   void getMatchingExistingContact(@NonNull Contact contact, @NonNull ContactMatchCallback callback) {
     executor.execute(() -> {
-      long contactId = queryForContactId(contact);
-
-      if (contactId <= 0) {
-        callback.onComplete(null);
-        return;
-      }
-
-      Contact existingContact = getContact(contactId);
-      if (existingContact == null) {
-        callback.onComplete(null);
-        return;
-      }
-
-      callback.onComplete(isSuperSet(existingContact, contact) ? buildContactInfo(existingContact) : null);
-    });
-  }
-
-  void persistContactImages(@NonNull List<Contact> contacts, ValueCallback<List<Contact>> callback) {
-    executor.execute(() -> {
-      List<Contact> persisted = new ArrayList<>(contacts.size());
-
-      for (Contact contact : contacts) {
-        ContactAvatar avatar = null;
-
-        if (contact.getAvatar() != null && contact.getAvatar().getImage().getDataUri() != null) {
-          try {
-            Uri avatarUri = persistContactPhoto(contact.getAvatar().getImage().getDataUri());
-            avatar = new ContactAvatar(avatarUri, contact.getAvatar().isProfile());
-          } catch (IOException e) {
-            Log.w(TAG, "Failed to persist avatar. Skipping it.", e);
-          }
-        }
-
-        persisted.add(new Contact(contact.getName(),
-                                  contact.getOrganization(),
-                                  contact.getPhoneNumbers(),
-                                  contact.getEmails(),
-                                  contact.getPostalAddresses(),
-                                  avatar));
-      }
-
-      callback.onComplete(persisted);
+      callback.onComplete(null);
+//      long contactId = queryForContactId(contact);
+//
+//      if (contactId <= 0) {
+//        callback.onComplete(null);
+//        return;
+//      }
+//
+//      Contact existingContact = getContact(contactId);
+//      if (existingContact == null) {
+//        callback.onComplete(null);
+//        return;
+//      }
+//
+//      callback.onComplete(isSuperSet(existingContact, contact) ? buildContactInfo(existingContact) : null);
     });
   }
 
   private @NonNull ContactDiff buildContactDiff(@NonNull Contact existing, @NonNull Contact test) {
-    ContactDiff diff = new ContactDiff();
-
-    Set<String> numbers = new HashSet<>();
-    Stream.of(existing.getPhoneNumbers()).forEach(phone -> numbers.add(phone.getNumber()));
-
-    for (Phone phone : test.getPhoneNumbers()) {
-      if (!numbers.contains(phone.getNumber())) {
-        diff.addPhone(phone);
-      }
-    }
-
-    Set<String> emails = new HashSet<>();
-    Stream.of(existing.getEmails()).forEach(email -> emails.add(email.getEmail()));
-
-    for (Email email : test.getEmails()) {
-      if (!emails.contains(email.getEmail())) {
-        diff.addEmail(email);
-      }
-    }
-
-    Set<String> postalAddresses = new HashSet<>();
-    Stream.of(existing.getPostalAddresses()).forEach(postalAddress ->  postalAddresses.add(postalAddress.toString()));
-
-    for (PostalAddress postalAddress : test.getPostalAddresses()) {
-      if (!postalAddresses.contains(postalAddress.toString())) {
-        diff.addPostalAddress(postalAddress);
-      }
-    }
-
-    if (TextUtils.isEmpty(existing.getOrganization()) && !TextUtils.isEmpty(test.getOrganization())) {
-      diff.setOrganization(test.getOrganization());
-    }
-
-    boolean testHasValidAvatar = test.getAvatar() != null && test.getAvatar().getImage().getDataUri() != null && !test.getAvatar().isProfile();
-    if (existing.getAvatar() == null && testHasValidAvatar) {
-      diff.setAvatar(test.getAvatar());
-    }
-
-    return diff;
+    return new ContactDiff();
+//    ContactDiff diff = new ContactDiff();
+//
+//    Set<String> numbers = new HashSet<>();
+//    Stream.of(existing.getPhoneNumbers()).forEach(phone -> numbers.add(phone.getNumber()));
+//
+//    for (Phone phone : test.getPhoneNumbers()) {
+//      if (!numbers.contains(phone.getNumber())) {
+//        diff.addPhone(phone);
+//      }
+//    }
+//
+//    Set<String> emails = new HashSet<>();
+//    Stream.of(existing.getEmails()).forEach(email -> emails.add(email.getEmail()));
+//
+//    for (Email email : test.getEmails()) {
+//      if (!emails.contains(email.getEmail())) {
+//        diff.addEmail(email);
+//      }
+//    }
+//
+//    Set<String> postalAddresses = new HashSet<>();
+//    Stream.of(existing.getPostalAddresses()).forEach(postalAddress ->  postalAddresses.add(postalAddress.toString()));
+//
+//    for (PostalAddress postalAddress : test.getPostalAddresses()) {
+//      if (!postalAddresses.contains(postalAddress.toString())) {
+//        diff.addPostalAddress(postalAddress);
+//      }
+//    }
+//
+//    if (TextUtils.isEmpty(existing.getOrganization()) && !TextUtils.isEmpty(test.getOrganization())) {
+//      diff.setOrganization(test.getOrganization());
+//    }
+//
+//    boolean testHasValidAvatar = test.getAvatarState() != null && !test.getAvatarState().isProfile();
+//    if (existing.getAvatarState() == null && testHasValidAvatar) {
+//      diff.setAvatar(test.getAvatarState());
+//    }
+//
+//    return diff;
   }
 
   private ArrayList<ContentProviderOperation> buildNewContactOperations(@NonNull Contact contact) {
@@ -320,12 +291,12 @@ public class ContactRepository {
       ops.add(getPostalAddressInsertOperation(postalAddress, 0));
     }
 
-    if (contact.getAvatar() != null && !contact.getAvatar().isProfile() && contact.getAvatar().getImage().getDataUri() != null) {
-      ContentProviderOperation op = getAvatarInsertOperation(contact.getAvatar().getImage().getDataUri(), 0);
-      if (op != null) {
-        ops.add(op);
-      }
-    }
+//    if (contact.getAvatarState() != null && !contact.getAvatarState().isProfile()) {
+//      ContentProviderOperation op = getAvatarInsertOperation(contact.getAvatarState(), 0);
+//      if (op != null) {
+//        ops.add(op);
+//      }
+//    }
 
     return ops;
   }
@@ -396,8 +367,8 @@ public class ContactRepository {
     return builder.build();
   }
 
-  private @Nullable ContentProviderOperation getAvatarInsertOperation(@NonNull Uri avatarUri, long contactId) {
-    try (InputStream avatarStream = PartAuthority.getAttachmentStream(context, avatarUri)) {
+  private @Nullable ContentProviderOperation getAvatarInsertOperation(@NonNull ContactAvatar avatar, long contactId) {
+    try (InputStream avatarStream = avatar.getImageStream(context)) {
       byte[] avatarBytes = Util.readFully(avatarStream);
 
       ContentProviderOperation.Builder builder = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
@@ -441,14 +412,8 @@ public class ContactRepository {
     return contactInfo;
   }
 
-  private boolean isSuperSet(@NonNull Contact existingContact, @NonNull Contact testContact) {
-    ContactDiff diff = buildContactDiff(existingContact, testContact);
-
-    return diff.getPhoneNumbers().isEmpty() && diff.getEmails().isEmpty() && diff.getPostalAddresses().isEmpty();
-  }
-
   @WorkerThread
-  private @Nullable Contact getContact(long contactId) {
+  private @Nullable ContactWithAvatar getContactWithAvatar(long contactId) {
     Name name = getName(contactId);
     if (name == null) {
       Log.w(TAG, "Couldn't find a name associated with the provided contact ID.");
@@ -456,13 +421,11 @@ public class ContactRepository {
     }
 
     List<Phone> phoneNumbers = getPhoneNumbers(contactId);
+    AvatarInfo  avatarInfo   = getAvatarInfo(contactId, phoneNumbers);
+    AvatarState avatarState  = avatarInfo == null ? AvatarState.NONE : (avatarInfo.isProfile ? AvatarState.PROFILE : AvatarState.SYSTEM);
 
-    return new Contact(name,
-                       null,
-                       phoneNumbers,
-                       getEmails(contactId),
-                       getPostalAddresses(contactId),
-                       getAvatar(contactId, phoneNumbers));
+    return new ContactWithAvatar(new Contact(name, null, phoneNumbers, getEmails(contactId), getPostalAddresses(contactId), avatarState, 0),
+                                 avatarInfo != null ? avatarInfo.uri : null);
   }
 
   @WorkerThread
@@ -563,15 +526,15 @@ public class ContactRepository {
   }
 
   @WorkerThread
-  private @Nullable ContactAvatar getAvatar(long contactId, List<Phone> phoneNumbers) {
-    ContactAvatar systemAvatar = getSystemAvatar(contactId);
+  private @Nullable AvatarInfo getAvatarInfo(long contactId, List<Phone> phoneNumbers) {
+    AvatarInfo systemAvatar = getSystemAvatarInfo(contactId);
 
     if (systemAvatar != null) {
       return systemAvatar;
     }
 
     for (Phone phoneNumber : phoneNumbers) {
-      ContactAvatar recipientAvatar = getRecipientAvatar(Address.fromExternal(context, phoneNumber.getNumber()));
+      AvatarInfo recipientAvatar = getRecipientAvatarInfo(Address.fromExternal(context, phoneNumber.getNumber()));
       if (recipientAvatar != null) {
         return recipientAvatar;
       }
@@ -580,24 +543,24 @@ public class ContactRepository {
   }
 
   @WorkerThread
-  private @Nullable ContactAvatar getSystemAvatar(long contactId) {
+  private @Nullable AvatarInfo getSystemAvatarInfo(long contactId) {
     Uri uri = contactsDatabase.getAvatarUri(contactId);
     if (uri != null) {
-      return new ContactAvatar(uri, false);
+      return new AvatarInfo(uri, false);
     }
 
     return null;
   }
 
   @WorkerThread
-  private @Nullable ContactAvatar getRecipientAvatar(@NonNull Address address) {
+  private @Nullable AvatarInfo getRecipientAvatarInfo(@NonNull Address address) {
     Recipient    recipient    = Recipient.from(context, address, false);
     ContactPhoto contactPhoto = recipient.getContactPhoto();
 
     if (contactPhoto != null) {
       Uri avatarUri = contactPhoto.getUri(context);
       if (avatarUri != null) {
-        return new ContactAvatar(avatarUri, contactPhoto.isProfilePhoto());
+        return new AvatarInfo(avatarUri, contactPhoto.isProfilePhoto());
       }
     }
 
@@ -624,9 +587,8 @@ public class ContactRepository {
   }
 
   @WorkerThread
-  private @NonNull Uri persistContactPhoto(@NonNull Uri avatarUri) throws IOException {
-    InputStream avatarStream = PartAuthority.getAttachmentStream(context, avatarUri);
-    return PersistentBlobProvider.getInstance(context).create(context, avatarStream, MediaUtil.IMAGE_JPEG, null, null);
+  private @NonNull Uri persistContactPhoto(@NonNull Uri uri) throws IOException {
+    return PersistentBlobProvider.getInstance(context).create(context, PartAuthority.getAttachmentStream(context, uri), MediaUtil.IMAGE_JPEG, null, null);
   }
 
   private Phone.Type phoneTypeFromContactType(int type) {
@@ -704,6 +666,25 @@ public class ContactRepository {
   interface ContactMatchCallback {
     /** @param matchedContact A contact that is a superset of the provided contact, otherwise null.  */
     void onComplete(@Nullable ContactInfo matchedContact);
+  }
+
+  private static class AvatarInfo {
+
+    private final Uri     uri;
+    private final boolean isProfile;
+
+    private AvatarInfo(Uri uri, boolean isProfile) {
+      this.uri = uri;
+      this.isProfile = isProfile;
+    }
+
+    public Uri getUri() {
+      return uri;
+    }
+
+    public boolean isProfile() {
+      return isProfile;
+    }
   }
 
   public static class ContactInfo {

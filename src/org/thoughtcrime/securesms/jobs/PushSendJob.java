@@ -171,10 +171,10 @@ public abstract class PushSendJob extends SendJob {
     return Optional.of(new SignalServiceDataMessage.Quote(quoteId, new SignalServiceAddress(quoteAuthor.serialize()), quoteBody, quoteAttachments));
   }
 
-  Optional<List<SharedContact>> getSharedContactsFor(OutgoingMediaMessage message) {
-    if (message.getOutgoingContacts().isEmpty()) return Optional.absent();
-    return Optional.of(ContactModelMapper.localToRemoteWithAttachments(context, message.getOutgoingContacts()));
-  }
+//  Optional<List<SharedContact>> getSharedContactsFor(OutgoingMediaMessage message) {
+//    if (message.getOutgoingContacts().isEmpty()) return Optional.absent();
+//    return Optional.of(ContactModelMapper.localToRemoteWithAttachments(context, message.getOutgoingContacts()));
+//  }
 
   protected abstract void onPushSend() throws Exception;
 }

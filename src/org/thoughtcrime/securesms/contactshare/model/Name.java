@@ -11,7 +11,9 @@ import org.json.JSONObject;
 import org.thoughtcrime.securesms.util.JsonUtils;
 import org.w3c.dom.Text;
 
-public class Name implements Parcelable, Json {
+import java.io.Serializable;
+
+public class Name implements Parcelable, Serializable {
 
   private final String displayName;
   private final String givenName;
@@ -70,28 +72,6 @@ public class Name implements Parcelable, Json {
            TextUtils.isEmpty(prefix)      &&
            TextUtils.isEmpty(suffix)      &&
            TextUtils.isEmpty(middleName);
-  }
-
-  @Override
-  public JSONObject toJson() throws JSONException {
-    JSONObject object = new JSONObject();
-    object.put("displayName", displayName);
-    object.put("givenName", givenName);
-    object.put("familyName", familyName);
-    object.put("prefix", prefix);
-    object.put("suffix", suffix);
-    object.put("middleName", middleName);
-    return object;
-  }
-
-  public static Name fromJson(@NonNull JSONObject original) throws JSONException {
-    JsonUtils.SaneJSONObject object = new JsonUtils.SaneJSONObject(original);
-    return new Name(object.getString("displayName"),
-                    object.getString("givenName"),
-                    object.getString("familyName"),
-                    object.getString("prefix"),
-                    object.getString("suffix"),
-                    object.getString("middleName"));
   }
 
   @Override

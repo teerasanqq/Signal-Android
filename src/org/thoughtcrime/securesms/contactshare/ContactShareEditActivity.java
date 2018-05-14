@@ -18,6 +18,7 @@ import org.thoughtcrime.securesms.PassphraseRequiredActionBarActivity;
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.SignalExecutors;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
+import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
 import org.thoughtcrime.securesms.mms.GlideApp;
 import org.thoughtcrime.securesms.util.DynamicLanguage;
@@ -68,7 +69,7 @@ public class ContactShareEditActivity extends PassphraseRequiredActionBarActivit
     List<Long> contactIds = Stream.of(serializedIds).map(Long::parseLong).toList();
 
     View sendButton = findViewById(R.id.contact_share_edit_send);
-    sendButton.setOnClickListener(v -> viewModel.getFinalizedContacts().observe(this, this::onSendClicked));
+    sendButton.setOnClickListener(v -> onSendClicked(viewModel.getFinalizedContacts()));
 
     RecyclerView contactList = findViewById(R.id.contact_share_edit_list);
     contactList.setLayoutManager(new LinearLayoutManager(this));
@@ -84,7 +85,7 @@ public class ContactShareEditActivity extends PassphraseRequiredActionBarActivit
                                                                 DatabaseFactory.getThreadDatabase(this));
 
     viewModel = ViewModelProviders.of(this, new Factory(contactIds, contactRepository)).get(ContactShareEditViewModel.class);
-    viewModel.getContacts().observe(this, contacts -> {
+    viewModel.getContactsWithAvatars().observe(this, contacts -> {
       contactAdapter.setContacts(contacts);
       contactList.post(() -> contactList.scrollToPosition(0));
     });
@@ -109,10 +110,10 @@ public class ContactShareEditActivity extends PassphraseRequiredActionBarActivit
     }
   }
 
-  private void onSendClicked(List<Contact> contacts) {
+  private void onSendClicked(List<ContactWithAvatar> contacts) {
     Intent intent = new Intent();
 
-    ArrayList<Contact> contactArrayList = new ArrayList<>(contacts.size());
+    ArrayList<ContactWithAvatar> contactArrayList = new ArrayList<>(contacts.size());
     contactArrayList.addAll(contacts);
     intent.putExtra(KEY_CONTACTS, contactArrayList);
 

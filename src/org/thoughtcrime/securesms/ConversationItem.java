@@ -228,7 +228,7 @@ public class ConversationItem extends LinearLayout
     setSimInfo(messageRecord);
     setExpiration(messageRecord);
     setQuote(messageRecord);
-    setSharedContacts(messageRecord);
+//    setSharedContacts(messageRecord);
   }
 
   @Override
@@ -401,6 +401,10 @@ public class ConversationItem extends LinearLayout
     return messageRecord.isMms() && ((MmsMessageRecord)messageRecord).getQuote() != null;
   }
 
+  private boolean hasSharedContact(MessageRecord messageRecord) {
+    return messageRecord.isMms() && ((MmsMessageRecord)messageRecord).getSlideDeck().getSharedContactSlide() != null;
+  }
+
   private void setBodyText(MessageRecord messageRecord) {
     bodyText.setClickable(false);
     bodyText.setFocusable(false);
@@ -417,10 +421,21 @@ public class ConversationItem extends LinearLayout
   private void setMediaAttributes(MessageRecord messageRecord) {
     boolean showControls = !messageRecord.isFailed() && (!messageRecord.isOutgoing() || messageRecord.isPending());
 
-    if (hasAudio(messageRecord)) {
+    if (hasSharedContact(messageRecord)) {
+      // TODO(greyson): ViewStub?
+      sharedContactView.setVisibility(VISIBLE);
+      if (audioViewStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
+      if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
+      if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
+
+      //noinspection ConstantConditions
+      sharedContactView.setContact(((MediaMmsMessageRecord) messageRecord).getSlideDeck().getSharedContactSlide(), glideRequests, locale);
+
+    } else if (hasAudio(messageRecord)) {
       audioViewStub.get().setVisibility(View.VISIBLE);
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
+      sharedContactView.setVisibility(GONE);
 
       //noinspection ConstantConditions
       audioViewStub.get().setAudio(((MediaMmsMessageRecord) messageRecord).getSlideDeck().getAudioSlide(), showControls);
@@ -432,6 +447,7 @@ public class ConversationItem extends LinearLayout
       documentViewStub.get().setVisibility(View.VISIBLE);
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (audioViewStub.resolved())      audioViewStub.get().setVisibility(View.GONE);
+      sharedContactView.setVisibility(GONE);
 
       //noinspection ConstantConditions
       documentViewStub.get().setDocument(((MediaMmsMessageRecord)messageRecord).getSlideDeck().getDocumentSlide(), showControls);
@@ -444,6 +460,7 @@ public class ConversationItem extends LinearLayout
       mediaThumbnailStub.get().setVisibility(View.VISIBLE);
       if (audioViewStub.resolved())    audioViewStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved()) documentViewStub.get().setVisibility(View.GONE);
+      sharedContactView.setVisibility(GONE);
 
       //noinspection ConstantConditions
       Slide      thumbnailSlide = ((MmsMessageRecord) messageRecord).getSlideDeck().getThumbnailSlide();
@@ -464,6 +481,7 @@ public class ConversationItem extends LinearLayout
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (audioViewStub.resolved())      audioViewStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
+      sharedContactView.setVisibility(GONE);
       bodyText.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
   }
@@ -587,104 +605,108 @@ public class ConversationItem extends LinearLayout
     }
   }
 
-  private void setSharedContacts(final @NonNull MessageRecord message) {
-    if (message.isMms() && !message.isMmsNotification() && ((MediaMmsMessageRecord) message).getSharedContacts().size() > 0) {
-      sharedContactView.setVisibility(VISIBLE);
+  private void setSharedContacts(final @NonNull MessageRecord messageRecord) {
 
-      ContactRetriever       retriever = ((MediaMmsMessageRecord) message).getSharedContacts().get(0);
-      SharedContactViewModel viewModel = viewModelRetriever.getSharedContactViewModel(getSharedContactViewModelKey(message), retriever);
-
-      viewModel.refresh(retriever);
-
-      viewModel.getContactDetails().observe(viewModelRetriever.getLifecycleOwner(), contactViewDetails -> {
-        if (message.getId() != messageRecord.getId()) {
-          Log.w(TAG, "Retrieved a contact for display, but the viewholder is now bound to a different message.");
-          return;
-        }
-
-        if (contactViewDetails == null) {
-          Log.w(TAG, "Failed to retrieve the contact.");
-          return;
-        }
-
-        Contact contact = contactViewDetails.getContactInfo().getContact();
-
-        sharedContactView.setContact(contactViewDetails, glideRequests, locale);
-
-        sharedContactView.setOnClickListener(view -> {
-          if (eventListener != null && batchSelected.isEmpty()) {
-            eventListener.onSharedContactDetailsClicked(contact, sharedContactView.getAvatarView());
-          } else {
-            passthroughClickListener.onClick(view);
-          }
-        });
-
-        sharedContactView.setEventListener(new SharedContactView.EventListener() {
-          @Override
-          public void onAddToContactsClicked(@NonNull Contact clickedContact) {
-            if (eventListener != null && batchSelected.isEmpty()) {
-              eventListener.onAddToContactClicked(clickedContact, viewModel);
-              viewModelRetriever.setExistingContactSelectedListener(viewModel::saveDetailsToExistingContact);
-            } else {
-              passthroughClickListener.onClick(sharedContactView);
-            }
-          }
-
-          @Override
-          public void onInviteClicked(@NonNull Phone phoneNumber) {
-            if (eventListener != null && batchSelected.isEmpty()) {
-              Address address = Address.fromExternal(context, phoneNumber.getNumber());
-              viewModel.getThreadId(address).observe(viewModelRetriever.getLifecycleOwner(), threadId -> {
-                if (threadId == null) {
-                  return;
-                }
-                eventListener.onOpenConversation(address, threadId, context.getString(R.string.InviteActivity_lets_switch_to_signal, "https://sgnl.link/1KpeYmF"));
-              });
-            } else {
-              passthroughClickListener.onClick(sharedContactView);
-            }
-          }
-
-          @Override
-          public void onMessageClicked(@NonNull Phone phoneNumber) {
-            if (eventListener != null && batchSelected.isEmpty()) {
-              Address address = Address.fromExternal(context, phoneNumber.getNumber());
-              viewModel.getThreadId(address).observe(viewModelRetriever.getLifecycleOwner(), threadId -> {
-                if (threadId == null) {
-                  return;
-                }
-                eventListener.onOpenConversation(address, threadId, null);
-              });
-            } else {
-              passthroughClickListener.onClick(sharedContactView);
-            }
-          }
-        });
-
-        sharedContactView.setOnLongClickListener(passthroughClickListener);
-      });
-
-      viewModel.getEvent().observe(viewModelRetriever.getLifecycleOwner(), event -> {
-        if (event == null) {
-          return;
-        }
-
-        switch (event) {
-          case NEW_CONTACT_ERROR:
-            Toast.makeText(context, R.string.SharedContactDetailsActivity_new_contact_failure, Toast.LENGTH_SHORT).show();
-            break;
-          case EDIT_CONTACT_ERROR:
-            Toast.makeText(context, R.string.SharedContactDetailsActivity_new_contact_failure, Toast.LENGTH_SHORT).show();
-            break;
-          case INITIALIZATION_ERROR:
-            Toast.makeText(context, R.string.SharedContactDetailsActivity_initialization_failure, Toast.LENGTH_SHORT).show();
-            break;
-        }
-      });
-    } else {
-      sharedContactView.setVisibility(GONE);
-    }
   }
+
+//  private void setSharedContacts(final @NonNull MessageRecord message) {
+//    if (message.isMms() && !message.isMmsNotification() && ((MediaMmsMessageRecord) message).getSharedContacts().size() > 0) {
+//      sharedContactView.setVisibility(VISIBLE);
+//
+//      ContactRetriever       retriever = ((MediaMmsMessageRecord) message).getSharedContacts().get(0);
+//      SharedContactViewModel viewModel = viewModelRetriever.getSharedContactViewModel(getSharedContactViewModelKey(message), retriever);
+//
+//      viewModel.refresh(retriever);
+//
+//      viewModel.getContactDetails().observe(viewModelRetriever.getLifecycleOwner(), contactViewDetails -> {
+//        if (message.getId() != messageRecord.getId()) {
+//          Log.w(TAG, "Retrieved a contact for display, but the viewholder is now bound to a different message.");
+//          return;
+//        }
+//
+//        if (contactViewDetails == null) {
+//          Log.w(TAG, "Failed to retrieve the contact.");
+//          return;
+//        }
+//
+//        Contact contact = contactViewDetails.getContactInfo().getContact();
+//
+//        sharedContactView.setContact(contactViewDetails, glideRequests, locale);
+//
+//        sharedContactView.setOnClickListener(view -> {
+//          if (eventListener != null && batchSelected.isEmpty()) {
+//            eventListener.onSharedContactDetailsClicked(contact, sharedContactView.getAvatarView());
+//          } else {
+//            passthroughClickListener.onClick(view);
+//          }
+//        });
+//
+//        sharedContactView.setEventListener(new SharedContactView.EventListener() {
+//          @Override
+//          public void onAddToContactsClicked(@NonNull Contact clickedContact) {
+//            if (eventListener != null && batchSelected.isEmpty()) {
+//              eventListener.onAddToContactClicked(clickedContact, viewModel);
+//              viewModelRetriever.setExistingContactSelectedListener(viewModel::saveDetailsToExistingContact);
+//            } else {
+//              passthroughClickListener.onClick(sharedContactView);
+//            }
+//          }
+//
+//          @Override
+//          public void onInviteClicked(@NonNull Phone phoneNumber) {
+//            if (eventListener != null && batchSelected.isEmpty()) {
+//              Address address = Address.fromExternal(context, phoneNumber.getNumber());
+//              viewModel.getThreadId(address).observe(viewModelRetriever.getLifecycleOwner(), threadId -> {
+//                if (threadId == null) {
+//                  return;
+//                }
+//                eventListener.onOpenConversation(address, threadId, context.getString(R.string.InviteActivity_lets_switch_to_signal, "https://sgnl.link/1KpeYmF"));
+//              });
+//            } else {
+//              passthroughClickListener.onClick(sharedContactView);
+//            }
+//          }
+//
+//          @Override
+//          public void onMessageClicked(@NonNull Phone phoneNumber) {
+//            if (eventListener != null && batchSelected.isEmpty()) {
+//              Address address = Address.fromExternal(context, phoneNumber.getNumber());
+//              viewModel.getThreadId(address).observe(viewModelRetriever.getLifecycleOwner(), threadId -> {
+//                if (threadId == null) {
+//                  return;
+//                }
+//                eventListener.onOpenConversation(address, threadId, null);
+//              });
+//            } else {
+//              passthroughClickListener.onClick(sharedContactView);
+//            }
+//          }
+//        });
+//
+//        sharedContactView.setOnLongClickListener(passthroughClickListener);
+//      });
+//
+//      viewModel.getEvent().observe(viewModelRetriever.getLifecycleOwner(), event -> {
+//        if (event == null) {
+//          return;
+//        }
+//
+//        switch (event) {
+//          case NEW_CONTACT_ERROR:
+//            Toast.makeText(context, R.string.SharedContactDetailsActivity_new_contact_failure, Toast.LENGTH_SHORT).show();
+//            break;
+//          case EDIT_CONTACT_ERROR:
+//            Toast.makeText(context, R.string.SharedContactDetailsActivity_new_contact_failure, Toast.LENGTH_SHORT).show();
+//            break;
+//          case INITIALIZATION_ERROR:
+//            Toast.makeText(context, R.string.SharedContactDetailsActivity_initialization_failure, Toast.LENGTH_SHORT).show();
+//            break;
+//        }
+//      });
+//    } else {
+//      sharedContactView.setVisibility(GONE);
+//    }
+//  }
 
   private String getSharedContactViewModelKey(@NonNull MessageRecord messageRecord) {
     return messageRecord.getRecipient().getAddress().serialize() + messageRecord.getTimestamp();

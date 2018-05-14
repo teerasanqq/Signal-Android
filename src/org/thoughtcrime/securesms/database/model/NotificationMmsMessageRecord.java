@@ -56,7 +56,7 @@ public class NotificationMmsMessageRecord extends MmsMessageRecord {
     super(context, id, "", conversationRecipient, individualRecipient, recipientDeviceId,
           dateSent, dateReceived, threadId, Status.STATUS_NONE, deliveryReceiptCount, mailbox,
           new LinkedList<IdentityKeyMismatch>(), new LinkedList<NetworkFailure>(), subscriptionId,
-          0, 0, slideDeck, readReceiptCount, null, Collections.emptyList());
+          0, 0, slideDeck, readReceiptCount, null);
     // TODO: Do we need contacts here so we can show a little preview message? Or is that unrelated?
 
     this.contentLocation = contentLocation;

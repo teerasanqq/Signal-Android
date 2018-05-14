@@ -5,7 +5,6 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,20 +15,19 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.components.AvatarImageView;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader;
-import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
+import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.mms.GlideRequests;
-import org.thoughtcrime.securesms.recipients.Recipient;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEditAdapter.ContactEditViewHolder> {
 
-  private final Locale        locale;
-  private final GlideRequests glideRequests;
-  private final List<Contact> contacts;
+  private final Locale                  locale;
+  private final GlideRequests           glideRequests;
+  private final List<ContactWithAvatar> contacts;
 
   ContactShareEditAdapter(@NonNull GlideRequests glideRequests, @NonNull Locale locale) {
     this.locale        = locale;
@@ -52,7 +50,7 @@ public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEd
     return contacts.size();
   }
 
-  void setContacts(@Nullable List<Contact> contacts) {
+  void setContacts(@Nullable List<ContactWithAvatar> contacts) {
     this.contacts.clear();
 
     if (contacts != null) {
@@ -81,11 +79,12 @@ public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEd
       fields.setAdapter(fieldAdapter);
     }
 
-    void bind(@NonNull Contact contact, @NonNull GlideRequests glideRequests) {
+    void bind(@NonNull ContactWithAvatar contactWithAvatar, @NonNull GlideRequests glideRequests) {
       Context context = itemView.getContext();
+      Contact contact = contactWithAvatar.getContact();
 
-      if (contact.getAvatar() != null && contact.getAvatar().getImage().getDataUri() != null) {
-        glideRequests.load(new DecryptableUri(contact.getAvatar().getImage().getDataUri()))
+      if (contactWithAvatar.getAvatarUri() != null) {
+        glideRequests.load(contactWithAvatar.getAvatarUri())
                      .fallback(R.drawable.ic_contact_picture)
                      .circleCrop()
                      .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -98,7 +97,7 @@ public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEd
       }
 
       name.setText(ContactUtil.getDisplayName(contact));
-      fieldAdapter.setFields(context, contact.getPhoneNumbers(), contact.getEmails(), contact.getPostalAddresses());
+      fieldAdapter.setFields(context,contact.getPhoneNumbers(), contact.getEmails(), contact.getPostalAddresses());
     }
   }
 }

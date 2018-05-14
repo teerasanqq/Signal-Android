@@ -2,15 +2,12 @@ package org.thoughtcrime.securesms.contactshare.model;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.util.Log;
 
 import org.greenrobot.eventbus.EventBus;
 import org.thoughtcrime.securesms.attachments.Attachment;
-import org.thoughtcrime.securesms.attachments.PointerAttachment;
 import org.thoughtcrime.securesms.events.PartProgressEvent;
 import org.thoughtcrime.securesms.mms.PartAuthority;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachment;
 import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 
@@ -24,83 +21,75 @@ public class ContactModelMapper {
 
   private static final String TAG = ContactModelMapper.class.getSimpleName();
 
-  public static List<SharedContact> localToRemoteWithAttachments(@NonNull Context context, @NonNull List<Contact> contacts) {
-    return localToRemote(context, contacts);
+//  public static List<SharedContact> localToRemote(@NonNull Context context, @NonNull List<ContactWithAvatar> contactsWithAvatar) {
+//    List<SharedContact> sharedContacts = new ArrayList<>(contactsWithAvatar.size());
+//
+//    for (ContactWithAvatar contactWithAvatar : contactsWithAvatar) {
+//      sharedContacts.add(localToRemote(context, contactWithAvatar));
+//    }
+//
+//    return sharedContacts;
+//  }
+//
+//  public static SharedContact localToRemote(@NonNull Context context, @NonNull ContactWithAvatar contactWithAvatar) {
+//    SharedContact.Builder builder = localToRemoteBuilder(contactWithAvatar.getContact());
+//    if (contactWithAvatar.getAvatarUri() != null) {
+//      builder.setAvatar(SharedContact.Avatar.newBuilder().withAttachment(getAttachmentFor(context, contactWithAvatar.getAvatarUri()))
+//                                                         .withProfileFlag(contactWithAvatar.getContact().getAvatarState().isProfile())
+//                                                         .build());
+//    }
+//    return builder.build();
+//  }
+
+  public static SharedContact localToRemote(@NonNull Contact contact) {
+    return localToRemoteBuilder(contact).build();
   }
 
-  public static List<SharedContact> localToRemote(@NonNull List<Contact> contacts) {
-    return localToRemote(null, contacts);
-  }
-
-  private static List<SharedContact> localToRemote(@Nullable Context context, @NonNull List<Contact> contacts) {
-    List<SharedContact> sharedContacts = new ArrayList<>(contacts.size());
-
-    for (Contact contact : contacts) {
-      sharedContacts.add(localToRemote(context, contact));
-    }
-
-    return sharedContacts;
-  }
-
-  private static SharedContact localToRemote(@NonNull Contact contact) {
-    return localToRemote(null, contact);
-  }
-
-  private static SharedContact localToRemote(@Nullable Context context, @NonNull Contact contact) {
+  private static SharedContact.Builder localToRemoteBuilder(@NonNull Contact contact) {
     List<SharedContact.Phone>         phoneNumbers    = new ArrayList<>(contact.getPhoneNumbers().size());
     List<SharedContact.Email>         emails          = new ArrayList<>(contact.getEmails().size());
     List<SharedContact.PostalAddress> postalAddresses = new ArrayList<>(contact.getPostalAddresses().size());
 
     for (Phone phone : contact.getPhoneNumbers()) {
       phoneNumbers.add(new SharedContact.Phone.Builder().setValue(phone.getNumber())
-          .setType(localToRemoteType(phone.getType()))
-          .setLabel(phone.getLabel())
-          .build());
+                                                        .setType(localToRemoteType(phone.getType()))
+                                                        .setLabel(phone.getLabel())
+                                                        .build());
     }
 
     for (Email email : contact.getEmails()) {
       emails.add(new SharedContact.Email.Builder().setValue(email.getEmail())
-          .setType(localToRemoteType(email.getType()))
-          .setLabel(email.getLabel())
-          .build());
+                                                  .setType(localToRemoteType(email.getType()))
+                                                  .setLabel(email.getLabel())
+                                                  .build());
     }
 
     for (PostalAddress postalAddress : contact.getPostalAddresses()) {
       postalAddresses.add(new SharedContact.PostalAddress.Builder().setType(localToRemoteType(postalAddress.getType()))
-          .setLabel(postalAddress.getLabel())
-          .setStreet(postalAddress.getStreet())
-          .setPobox(postalAddress.getPoBox())
-          .setNeighborhood(postalAddress.getNeighborhood())
-          .setCity(postalAddress.getCity())
-          .setRegion(postalAddress.getRegion())
-          .setPostcode(postalAddress.getPostalCode())
-          .setCountry(postalAddress.getCountry())
-          .build());
+                                                                   .setLabel(postalAddress.getLabel())
+                                                                   .setStreet(postalAddress.getStreet())
+                                                                   .setPobox(postalAddress.getPoBox())
+                                                                   .setNeighborhood(postalAddress.getNeighborhood())
+                                                                   .setCity(postalAddress.getCity())
+                                                                   .setRegion(postalAddress.getRegion())
+                                                                   .setPostcode(postalAddress.getPostalCode())
+                                                                   .setCountry(postalAddress.getCountry())
+                                                                   .build());
     }
 
     SharedContact.Name name = new SharedContact.Name.Builder().setDisplay(contact.getName().getDisplayName())
-        .setGiven(contact.getName().getGivenName())
-        .setFamily(contact.getName().getFamilyName())
-        .setPrefix(contact.getName().getPrefix())
-        .setSuffix(contact.getName().getSuffix())
-        .setMiddle(contact.getName().getMiddleName())
-        .build();
-
-    SharedContact.Avatar avatar = null;
-    if (contact.getAvatar() != null) {
-      SignalServiceAttachment avatarAttachment = getAttachmentFor(context, contact.getAvatar().getImage());
-      avatar = new SharedContact.Avatar.Builder().withAttachment(avatarAttachment)
-          .withProfileFlag(contact.getAvatar().isProfile())
-          .build();
-    }
+                                                              .setGiven(contact.getName().getGivenName())
+                                                              .setFamily(contact.getName().getFamilyName())
+                                                              .setPrefix(contact.getName().getPrefix())
+                                                              .setSuffix(contact.getName().getSuffix())
+                                                              .setMiddle(contact.getName().getMiddleName())
+                                                              .build();
 
     return new SharedContact.Builder().setName(name)
                                       .withOrganization(contact.getOrganization())
                                       .withPhones(phoneNumbers)
                                       .withEmails(emails)
-                                      .withAddresses(postalAddresses)
-                                      .setAvatar(avatar)
-                                      .build();
+                                      .withAddresses(postalAddresses);
   }
 
   public static List<Contact> remoteToLocal(@NonNull List<SharedContact> sharedContacts) {
@@ -154,14 +143,14 @@ public class ContactModelMapper {
       }
     }
 
-    ContactAvatar contactAvatar = null;
+    Contact.AvatarState avatarState = Contact.AvatarState.NONE;
+    int                 avatarSize  = 0;
     if (sharedContact.getAvatar().isPresent()) {
-      // TODO: Doesn't seem to be much work here, but still might want an option not to do it
-      Attachment avatarAttachment = PointerAttachment.forPointer(Optional.of(sharedContact.getAvatar().get().getAttachment())).get();
-      contactAvatar = new ContactAvatar(avatarAttachment, sharedContact.getAvatar().get().isProfile());
+      avatarState = sharedContact.getAvatar().get().isProfile() ? Contact.AvatarState.PROFILE : Contact.AvatarState.SYSTEM;
+      avatarSize  = sharedContact.getAvatar().get().getAttachment().asPointer().getSize().or(0);
     }
 
-    return new Contact(name, sharedContact.getOrganization().orNull(), phoneNumbers, emails, postalAddresses, contactAvatar);
+    return new Contact(name, sharedContact.getOrganization().orNull(), phoneNumbers, emails, postalAddresses, avatarState, avatarSize);
   }
 
   private static Phone.Type remoteToLocalType(SharedContact.Phone.Type type) {

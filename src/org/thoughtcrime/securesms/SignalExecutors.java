@@ -6,4 +6,5 @@ import java.util.concurrent.Executors;
 public class SignalExecutors {
 
   public static final Executor DATABASE = Executors.newSingleThreadExecutor();
+  public static final Executor DISK_IO  = Executors.newSingleThreadExecutor();
 }

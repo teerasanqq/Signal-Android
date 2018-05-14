@@ -9,7 +9,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.thoughtcrime.securesms.util.JsonUtils;
 
-public class Phone implements Selectable, Parcelable, Json {
+import java.io.Serializable;
+
+public class Phone implements Selectable, Parcelable, Serializable {
 
   private final String number;
   private final Type   type;
@@ -53,22 +55,6 @@ public class Phone implements Selectable, Parcelable, Json {
   @Override
   public int describeContents() {
     return 0;
-  }
-
-  @Override
-  public JSONObject toJson() throws JSONException {
-    JSONObject object = new JSONObject();
-    object.put("number", number);
-    object.put("type", type.name());
-    object.put("label", label);
-    return object;
-  }
-
-  public static Phone fromJson(@NonNull JSONObject original) throws JSONException {
-    JsonUtils.SaneJSONObject object = new JsonUtils.SaneJSONObject(original);
-    return new Phone(object.getString("number"),
-                     Type.valueOf(object.getString("type")),
-                     object.getString("label"));
   }
 
   @Override

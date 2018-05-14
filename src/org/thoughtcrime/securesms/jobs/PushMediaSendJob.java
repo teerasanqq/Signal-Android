@@ -113,7 +113,7 @@ public class PushMediaSendJob extends PushSendJob implements InjectableType {
       List<SignalServiceAttachment>            attachmentStreams = getAttachmentsFor(scaledAttachments);
       Optional<byte[]>                         profileKey        = getProfileKey(message.getRecipient());
       Optional<SignalServiceDataMessage.Quote> quote             = getQuoteFor(message);
-      Optional<List<SharedContact>>            contacts          = getSharedContactsFor(message);
+//      Optional<List<SharedContact>>            contacts          = getSharedContactsFor(message);
       SignalServiceDataMessage                 mediaMessage      = SignalServiceDataMessage.newBuilder()
                                                                                            .withBody(message.getBody())
                                                                                            .withAttachments(attachmentStreams)
@@ -121,7 +121,7 @@ public class PushMediaSendJob extends PushSendJob implements InjectableType {
                                                                                            .withExpiration((int)(message.getExpiresIn() / 1000))
                                                                                            .withProfileKey(profileKey.orNull())
                                                                                            .withQuote(quote.orNull())
-                                                                                           .withSharedContacts(contacts.or(Collections.emptyList()))
+                                                                                           .withSharedContacts(Collections.emptyList())
                                                                                            .asExpirationUpdate(message.isExpirationUpdate())
                                                                                            .build();
 

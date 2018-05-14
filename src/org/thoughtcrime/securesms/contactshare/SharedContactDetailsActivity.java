@@ -3,10 +3,10 @@ package org.thoughtcrime.securesms.contactshare;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
-import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
@@ -15,7 +15,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -34,7 +33,6 @@ import org.thoughtcrime.securesms.contactshare.model.Phone;
 import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
 import org.thoughtcrime.securesms.mms.AttachmentManager;
-import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
 import org.thoughtcrime.securesms.mms.GlideApp;
 import org.thoughtcrime.securesms.mms.GlideRequests;
 import org.thoughtcrime.securesms.util.CommunicationActions;
@@ -42,8 +40,8 @@ import org.thoughtcrime.securesms.util.DynamicLanguage;
 import org.thoughtcrime.securesms.util.DynamicNoActionBarTheme;
 import org.thoughtcrime.securesms.util.DynamicTheme;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Locale;
 
 public class SharedContactDetailsActivity extends PassphraseRequiredActionBarActivity {
 
@@ -71,7 +69,7 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
 
   public static Intent getIntent(@NonNull Context context, @NonNull Contact contact) {
     Intent intent = new Intent(context, SharedContactDetailsActivity.class);
-    intent.putExtra(KEY_CONTACT, contact);
+    intent.putExtra(KEY_CONTACT, (Parcelable) contact);
     return intent;
   }
 
@@ -203,16 +201,21 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
       numberView.setText("");
     }
 
-    if (contact.getAvatar() != null && contact.getAvatar().getImage().getDataUri() != null) {
-      glideRequests.load(new DecryptableUri(contact.getAvatar().getImage().getDataUri()))
-          .fallback(R.drawable.ic_contact_picture)
-          .circleCrop()
-          .into(avatarView);
-    } else {
+//    if (contact.getAvatarState() != null) {
+//      try {
+//        glideRequests.load(contact.getAvatarState().getImageStream(this))
+//            .fallback(R.drawable.ic_contact_picture)
+//            .circleCrop()
+//            .into(avatarView);
+//      } catch (IOException e) {
+//        // TODO: Do better
+//        e.printStackTrace();
+//      }
+//    } else {
       glideRequests.load(R.drawable.ic_contact_picture)
           .circleCrop()
           .into(avatarView);
-    }
+//    }
 
     contactFieldAdapter.setFields(this, contact.getPhoneNumbers(), contact.getEmails(), contact.getPostalAddresses());
 

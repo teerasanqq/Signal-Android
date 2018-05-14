@@ -1,6 +1,8 @@
 package org.thoughtcrime.securesms.components;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -17,15 +19,20 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.contactshare.ContactRepository.ContactInfo;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
+import org.thoughtcrime.securesms.contactshare.SharedContactInjector;
 import org.thoughtcrime.securesms.contactshare.SharedContactViewModel.ContactViewDetails;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.Phone;
-import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
+import org.thoughtcrime.securesms.mms.GlideRequest;
 import org.thoughtcrime.securesms.mms.GlideRequests;
+import org.thoughtcrime.securesms.mms.PartAuthority;
+import org.thoughtcrime.securesms.mms.SharedContactSlide;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 
-public class SharedContactView extends LinearLayout {
+public class SharedContactView extends LinearLayout implements SharedContactInjector.Target {
 
   private ImageView avatarView;
   private TextView  nameView;
@@ -33,6 +40,8 @@ public class SharedContactView extends LinearLayout {
   private TextView  actionButtonView;
   private ViewGroup actionButtonContainerView;
 
+  private Locale        locale;
+  private GlideRequests glideRequests;
   private EventListener eventListener;
 
   public SharedContactView(Context context) {
@@ -66,35 +75,53 @@ public class SharedContactView extends LinearLayout {
     actionButtonContainerView = findViewById(R.id.contact_action_button_container);
   }
 
-  public void setContact(@NonNull ContactViewDetails contactDetails, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-    Contact contact       = contactDetails.getContactInfo().getContact();
-    Phone   displayNumber = ContactUtil.getDisplayNumber(contactDetails.getContactInfo());
+  public void setContact(@NonNull SharedContactSlide contactSlide, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
+    this.glideRequests = glideRequests;
+    this.locale        = locale;
 
-    presentHeader(contact, displayNumber, glideRequests, locale);
+    nameView.setText("We're getting closer!");
+    numberView.setText("610-555-5555");
 
-    switch (contactDetails.getState()) {
-      case NEW:
-        presentNewContactState(contact);
-        break;
-      case ADDED:
-        presentAddedContactState(contactDetails.getContactInfo(), displayNumber);
-        break;
-    }
+    glideRequests.load(R.drawable.ic_contact_picture)
+        .circleCrop()
+        .diskCacheStrategy(DiskCacheStrategy.ALL)
+        .into(avatarView);
+
+    SharedContactInjector.getInstance(getContext()).load(contactSlide, this);
+
+//    Contact contact       = contactDetails.getContactInfo().getContact();
+//    Phone   displayNumber = ContactUtil.getDisplayNumber(contactDetails.getContactInfo());
+//
+//    presentHeader(contact, displayNumber, glideRequests, locale);
+//
+//    switch (contactDetails.getState()) {
+//      case NEW:
+//        presentNewContactState(contact);
+//        break;
+//      case ADDED:
+//        presentAddedContactState(contactDetails.getContactInfo(), displayNumber);
+//        break;
+//    }
   }
 
   private void presentHeader(@NonNull Contact contact, @Nullable Phone displayNumber, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-    if (contact.getAvatar() != null && contact.getAvatar().getImage().getDataUri() != null) {
-      glideRequests.load(new DecryptableUri(contact.getAvatar().getImage().getDataUri()))
-                   .fallback(R.drawable.ic_contact_picture)
-                   .circleCrop()
-                   .diskCacheStrategy(DiskCacheStrategy.ALL)
-                   .into(avatarView);
-    } else {
+//    if (contact.getAvatarState() != null) {
+//      try {
+//        glideRequests.load(contact.getAvatarState().getImageStream(getContext()))
+//                     .fallback(R.drawable.ic_contact_picture)
+//                     .circleCrop()
+//                     .diskCacheStrategy(DiskCacheStrategy.ALL)
+//                     .into(avatarView);
+//      } catch (IOException e) {
+//        // TODO: Do better
+//        e.printStackTrace();
+//      }
+//    } else {
       glideRequests.load(R.drawable.ic_contact_picture)
                    .circleCrop()
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                    .into(avatarView);
-    }
+//    }
 
     nameView.setText(ContactUtil.getDisplayName(contact));
 
@@ -149,6 +176,34 @@ public class SharedContactView extends LinearLayout {
 
   public void setEventListener(EventListener listener) {
     this.eventListener = listener;
+  }
+
+  @Override
+  public void setContact(@Nullable Contact contact) {
+    if (contact != null) {
+      nameView.setText(contact.getName().getDisplayName());
+      numberView.setText("We'll do that next");
+    } else {
+      nameView.setText("");
+      numberView.setText("");
+    }
+  }
+
+  @Override
+  public void setAvatar(@Nullable InputStream inputStream) {
+    if (inputStream != null) {
+      Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+      glideRequests.load(bitmap)
+                   .circleCrop()
+                   .diskCacheStrategy(DiskCacheStrategy.ALL)
+                   .into(avatarView);
+    } else {
+      glideRequests.load(R.drawable.ic_contact_picture)
+                   .circleCrop()
+                   .diskCacheStrategy(DiskCacheStrategy.ALL)
+                   .into(avatarView);
+    }
   }
 
   public interface EventListener {
