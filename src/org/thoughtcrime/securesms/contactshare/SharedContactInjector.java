@@ -68,7 +68,7 @@ public class SharedContactInjector {
 
         // TODO(greyson): Do this better -- at least only make the handler once, maybe use asynctask
         new Handler(Looper.getMainLooper()).post(() -> {
-          // TODO(greyson): Maybe change this to get a list of (resolved) recipients as well, wrapped with a boolean as to whether this is in the contacts or not -- or we could applyCached setIsContact, probs better
+          // TODO(greyson): Maybe change this to get a list of (resolved) recipients as well, wrapped with a boolean as to whether this is in the contacts or not -- or we could applyCached setIsContact, probs better -- look at ContactAccessor.isSystemOrWhatever
           target.setContact(contact);
           target.setAvatar(avatar);
         });

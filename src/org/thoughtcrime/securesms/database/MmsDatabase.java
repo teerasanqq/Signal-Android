@@ -843,7 +843,6 @@ public class MmsDatabase extends MessagingDatabase {
       quoteAttachments.addAll(message.getOutgoingQuote().getAttachments());
     }
 
-    // TODO(greyson): Fill contact list
     long messageId = insertMediaMessage(message.getBody(), message.getAttachments(), quoteAttachments, Collections.emptyList(), contentValues, insertListener);
 
     if (message.getRecipient().getAddress().isGroup()) {

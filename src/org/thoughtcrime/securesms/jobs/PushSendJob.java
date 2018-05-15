@@ -1,6 +1,8 @@
 package org.thoughtcrime.securesms.jobs;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -10,6 +12,7 @@ import org.thoughtcrime.securesms.TextSecureExpiredException;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.ContactModelMapper;
+import org.thoughtcrime.securesms.contactshare.model.ContactStream;
 import org.thoughtcrime.securesms.contactshare.model.Email;
 import org.thoughtcrime.securesms.contactshare.model.Phone;
 import org.thoughtcrime.securesms.contactshare.model.PostalAddress;
@@ -22,12 +25,14 @@ import org.thoughtcrime.securesms.jobs.requirements.MasterSecretRequirement;
 import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader;
 import org.thoughtcrime.securesms.mms.OutgoingMediaMessage;
 import org.thoughtcrime.securesms.mms.PartAuthority;
+import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.notifications.MessageNotifier;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.util.BitmapDecodingException;
 import org.thoughtcrime.securesms.util.BitmapUtil;
 import org.thoughtcrime.securesms.util.MediaUtil;
 import org.thoughtcrime.securesms.util.TextSecurePreferences;
+import org.thoughtcrime.securesms.util.Util;
 import org.whispersystems.jobqueue.JobParameters;
 import org.whispersystems.jobqueue.requirements.NetworkRequirement;
 import org.whispersystems.libsignal.util.guava.Optional;
@@ -93,9 +98,11 @@ public abstract class PushSendJob extends SendJob {
     List<SignalServiceAttachment> attachments = new LinkedList<>();
 
     for (final Attachment attachment : parts) {
-      SignalServiceAttachment converted = getAttachmentFor(attachment);
-      if (converted != null) {
-        attachments.add(converted);
+      if (!MediaUtil.SHARED_CONTACT.equals(attachment.getContentType())) {
+        SignalServiceAttachment converted = getAttachmentFor(attachment);
+        if (converted != null) {
+          attachments.add(converted);
+        }
       }
     }
 
@@ -171,10 +178,41 @@ public abstract class PushSendJob extends SendJob {
     return Optional.of(new SignalServiceDataMessage.Quote(quoteId, new SignalServiceAddress(quoteAuthor.serialize()), quoteBody, quoteAttachments));
   }
 
-//  Optional<List<SharedContact>> getSharedContactsFor(OutgoingMediaMessage message) {
-//    if (message.getOutgoingContacts().isEmpty()) return Optional.absent();
-//    return Optional.of(ContactModelMapper.localToRemoteWithAttachments(context, message.getOutgoingContacts()));
-//  }
+  List<SharedContact> getSharedContactsFor(List<Attachment> attachments) {
+    List<SharedContact> contacts = new LinkedList<>();
+
+    for (Attachment attachment : attachments) {
+      if (!MediaUtil.SHARED_CONTACT.equals(attachment.getContentType()) || attachment.getDataUri() == null) {
+        continue;
+      }
+
+      try {
+        ContactStream.Reader  reader       = new ContactStream.Reader(PartAuthority.getAttachmentStream(context, attachment.getDataUri()));
+        Contact               contact      = reader.getContact();
+        InputStream           avatarStream = reader.getAvatar();
+        SharedContact.Builder builder      = ContactModelMapper.localToRemoteBuilder(contact);
+
+        if (avatarStream != null) {
+          byte[]                  avatarBytes      = Util.readFully(avatarStream);
+          SignalServiceAttachment avatarAttachment = SignalServiceAttachment.newStreamBuilder()
+                                                                            .withContentType(MediaUtil.IMAGE_JPEG)
+                                                                            .withLength(avatarBytes.length)
+                                                                            .withStream(new ByteArrayInputStream(avatarBytes))
+                                                                            .build();
+          SharedContact.Avatar    avatar           = SharedContact.Avatar.newBuilder().withProfileFlag(contact.getAvatarState().isProfile())
+                                                                                      .withAttachment(avatarAttachment)
+                                                                                      .build();
+          builder.setAvatar(avatar);
+        }
+
+        contacts.add(builder.build());
+      } catch (IOException e) {
+        Log.w(TAG, "Exception while reading contact stream. Can't send contact.", e);
+      }
+    }
+
+    return contacts;
+  }
 
   protected abstract void onPushSend() throws Exception;
 }

@@ -98,9 +98,7 @@ import org.thoughtcrime.securesms.contacts.ContactAccessor;
 import org.thoughtcrime.securesms.contacts.ContactAccessor.ContactData;
 import org.thoughtcrime.securesms.contactshare.ContactShareEditActivity;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
-import org.thoughtcrime.securesms.contactshare.model.Phone;
 import org.thoughtcrime.securesms.crypto.IdentityKeyParcelable;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
 import org.thoughtcrime.securesms.database.Address;
@@ -127,7 +125,6 @@ import org.thoughtcrime.securesms.mms.AttachmentManager.MediaType;
 import org.thoughtcrime.securesms.mms.AudioSlide;
 import org.thoughtcrime.securesms.mms.GlideApp;
 import org.thoughtcrime.securesms.mms.GlideRequests;
-import org.thoughtcrime.securesms.mms.ImageSlide;
 import org.thoughtcrime.securesms.mms.LocationSlide;
 import org.thoughtcrime.securesms.mms.MediaConstraints;
 import org.thoughtcrime.securesms.mms.OutgoingExpirationUpdateMessage;
@@ -213,17 +210,17 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
   public static final String TIMING_EXTRA            = "timing";
   public static final String LAST_SEEN_EXTRA         = "last_seen";
 
-  private static final int PICK_GALLERY      = 1;
-  private static final int PICK_DOCUMENT     = 2;
-  private static final int PICK_AUDIO        = 3;
-  private static final int PICK_CONTACT      = 4;
-  private static final int GET_CONTACT_INFO  = 5;
-  private static final int GROUP_EDIT        = 6;
-  private static final int TAKE_PHOTO        = 7;
-  private static final int ADD_CONTACT       = 8;
-  private static final int PICK_LOCATION     = 9;
-  private static final int PICK_GIF          = 10;
-  private static final int SMS_DEFAULT       = 11;
+  private static final int PICK_GALLERY        = 1;
+  private static final int PICK_DOCUMENT       = 2;
+  private static final int PICK_AUDIO          = 3;
+  private static final int PICK_CONTACT        = 4;
+  private static final int GET_CONTACT_DETAILS = 5;
+  private static final int GROUP_EDIT          = 6;
+  private static final int TAKE_PHOTO          = 7;
+  private static final int ADD_CONTACT         = 8;
+  private static final int PICK_LOCATION       = 9;
+  private static final int PICK_GIF            = 10;
+  private static final int SMS_DEFAULT         = 11;
 
   private   GlideRequests               glideRequests;
   protected ComposeText                 composeText;
@@ -434,9 +431,8 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
         addAttachmentContactInfo(data.getData());
       }
       break;
-      // TODO(greyson): Rename to something better?
-    case GET_CONTACT_INFO:
-      sendContactShareInfo(data.getParcelableArrayListExtra(ContactShareEditActivity.KEY_CONTACTS));
+    case GET_CONTACT_DETAILS:
+      sendSharedContact(data.getParcelableArrayListExtra(ContactShareEditActivity.KEY_CONTACTS));
       break;
     case GROUP_EDIT:
       recipient = Recipient.from(this, data.getParcelableExtra(GroupCreateActivity.GROUP_ADDRESS_EXTRA), true);
@@ -1400,7 +1396,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
   private void openContactShareEditor(Uri contactUri) {
     long id = ContactUtil.getContactIdFromUri(contactUri);
     Intent intent = ContactShareEditActivity.getIntent(this, Collections.singletonList(id));
-    startActivityForResult(intent, GET_CONTACT_INFO);
+    startActivityForResult(intent, GET_CONTACT_DETAILS);
   }
 
   private void addAttachmentContactInfo(Uri contactUri) {
@@ -1411,12 +1407,22 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     else if (contactData.numbers.size() > 1)  selectContactInfo(contactData);
   }
 
-  private void sendContactShareInfo(List<ContactWithAvatar> contactsWithAvatars) {
+  private void sendSharedContact(List<ContactWithAvatar> contactsWithAvatars) {
     int        subscriptionId = sendButton.getSelectedTransport().getSimSubscriptionId().or(-1);
     long       expiresIn      = recipient.getExpireMessages() * 1000L;
     boolean    initiating     = threadId == -1;
 
-    sendMediaMessage(isSmsForced(), "", new SlideDeck(), expiresIn, subscriptionId, initiating, contactsWithAvatars);
+    attachmentManager.setSharedContact(contactsWithAvatars.get(0)).addListener(new AssertedSuccessListener<Boolean>() {
+      @Override
+      public void onSuccess(Boolean success) {
+        if (success != null && success) {
+          sendMediaMessage(isSmsForced(), "", attachmentManager.buildSlideDeck(), expiresIn, subscriptionId, initiating);
+        } else {
+          Log.w(TAG, "Failed to save contact attachment.");
+          // TODO(greyson): Toast?
+        }
+      }
+    });
   }
 
   private void selectContactInfo(ContactData contactData) {
@@ -1704,26 +1710,13 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     sendMediaMessage(forceSms, getMessage(), attachmentManager.buildSlideDeck(), expiresIn, subscriptionId, initiating);
   }
 
-  private ListenableFuture<Void> sendMediaMessage(boolean   forceSms,
-                                                  String    body,
-                                                  SlideDeck slideDeck,
-                                                  long      expiresIn,
-                                                  int       subscriptionId,
-                                                  boolean   initiating)
+  private ListenableFuture<Void> sendMediaMessage(final    boolean   forceSms,
+                                                           String    body,
+                                                           SlideDeck slideDeck,
+                                                  final    long      expiresIn,
+                                                  final    int       subscriptionId,
+                                                  final    boolean   initiating)
   {
-    return sendMediaMessage(forceSms, body, slideDeck, expiresIn, subscriptionId, initiating, Collections.emptyList());
-  }
-
-  // TODO(greyson): Make this prettier
-  private ListenableFuture<Void> sendMediaMessage(final    boolean                 forceSms,
-                                                           String                  body,
-                                                           SlideDeck               slideDeck,
-                                                  final    long                    expiresIn,
-                                                  final    int                     subscriptionId,
-                                                  final    boolean                 initiating,
-                                                  @NonNull List<ContactWithAvatar> contacts)
-  {
-    // TODO(greyson): Save contacts to attachment manager?
     OutgoingMediaMessage outgoingMessageCandidate = new OutgoingMediaMessage(recipient,
                                                                              slideDeck,
                                                                              body,

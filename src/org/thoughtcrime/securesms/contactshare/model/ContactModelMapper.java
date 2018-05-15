@@ -12,11 +12,7 @@ public class ContactModelMapper {
 
   private static final String TAG = ContactModelMapper.class.getSimpleName();
 
-  public static SharedContact localToRemote(@NonNull Contact contact) {
-    return localToRemoteBuilder(contact).build();
-  }
-
-  private static SharedContact.Builder localToRemoteBuilder(@NonNull Contact contact) {
+  public static SharedContact.Builder localToRemoteBuilder(@NonNull Contact contact) {
     List<SharedContact.Phone>         phoneNumbers    = new ArrayList<>(contact.getPhoneNumbers().size());
     List<SharedContact.Email>         emails          = new ArrayList<>(contact.getEmails().size());
     List<SharedContact.PostalAddress> postalAddresses = new ArrayList<>(contact.getPostalAddresses().size());
