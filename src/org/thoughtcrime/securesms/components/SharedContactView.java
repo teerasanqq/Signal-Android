@@ -1,38 +1,42 @@
 package org.thoughtcrime.securesms.components;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.annimon.stream.Stream;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.contactshare.ContactRepository.ContactInfo;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
 import org.thoughtcrime.securesms.contactshare.SharedContactInjector;
-import org.thoughtcrime.securesms.contactshare.SharedContactViewModel.ContactViewDetails;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.Phone;
-import org.thoughtcrime.securesms.mms.GlideRequest;
+import org.thoughtcrime.securesms.database.RecipientDatabase;
 import org.thoughtcrime.securesms.mms.GlideRequests;
-import org.thoughtcrime.securesms.mms.PartAuthority;
 import org.thoughtcrime.securesms.mms.SharedContactSlide;
+import org.thoughtcrime.securesms.recipients.Recipient;
+import org.thoughtcrime.securesms.recipients.RecipientModifiedListener;
 
-import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
-public class SharedContactView extends LinearLayout implements SharedContactInjector.Target {
+public class SharedContactView extends LinearLayout implements SharedContactInjector.Target,
+                                                               RecipientModifiedListener {
 
   private ImageView avatarView;
   private TextView  nameView;
@@ -40,9 +44,13 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
   private TextView  actionButtonView;
   private ViewGroup actionButtonContainerView;
 
-  private Locale        locale;
-  private GlideRequests glideRequests;
-  private EventListener eventListener;
+  private SharedContactSlide sharedContactSlide;
+  private Contact            contact;
+  private Locale             locale;
+  private GlideRequests      glideRequests;
+  private EventListener      eventListener;
+
+  private final Map<String, Recipient> activeRecipients = new HashMap<>();
 
   public SharedContactView(Context context) {
     super(context);
@@ -75,114 +83,36 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     actionButtonContainerView = findViewById(R.id.contact_action_button_container);
   }
 
-  public void setContact(@NonNull SharedContactSlide contactSlide, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-    this.glideRequests = glideRequests;
-    this.locale        = locale;
+  public void setContact(@NonNull SharedContactSlide sharedContactSlide, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
+    this.sharedContactSlide = sharedContactSlide;
+    this.glideRequests      = glideRequests;
+    this.locale             = locale;
 
-    nameView.setText("We're getting closer!");
-    numberView.setText("610-555-5555");
+    Stream.of(activeRecipients.values()).forEach(recipient ->  recipient.removeListener(this));
+    this.activeRecipients.clear();
 
-    glideRequests.load(R.drawable.ic_contact_picture)
-        .circleCrop()
-        .diskCacheStrategy(DiskCacheStrategy.ALL)
-        .into(avatarView);
-
-    SharedContactInjector.getInstance(getContext()).load(contactSlide, this);
-
-//    Contact contact       = contactDetails.getContactInfo().getContact();
-//    Phone   displayNumber = ContactUtil.getDisplayNumber(contactDetails.getContactInfo());
-//
-//    presentHeader(contact, displayNumber, glideRequests, locale);
-//
-//    switch (contactDetails.getState()) {
-//      case NEW:
-//        presentNewContactState(contact);
-//        break;
-//      case ADDED:
-//        presentAddedContactState(contactDetails.getContactInfo(), displayNumber);
-//        break;
-//    }
-  }
-
-  private void presentHeader(@NonNull Contact contact, @Nullable Phone displayNumber, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-//    if (contact.getAvatarState() != null) {
-//      try {
-//        glideRequests.load(contact.getAvatarState().getImageStream(getContext()))
-//                     .fallback(R.drawable.ic_contact_picture)
-//                     .circleCrop()
-//                     .diskCacheStrategy(DiskCacheStrategy.ALL)
-//                     .into(avatarView);
-//      } catch (IOException e) {
-//        // TODO: Do better
-//        e.printStackTrace();
-//      }
-//    } else {
-      glideRequests.load(R.drawable.ic_contact_picture)
-                   .circleCrop()
-                   .diskCacheStrategy(DiskCacheStrategy.ALL)
-                   .into(avatarView);
-//    }
-
-    nameView.setText(ContactUtil.getDisplayName(contact));
-
-    if (displayNumber != null) {
-      numberView.setText(ContactUtil.getPrettyPhoneNumber(displayNumber, locale));
-    } else if (contact.getEmails().size() > 0) {
-      numberView.setText(contact.getEmails().get(0).getEmail());
-    } else {
-      numberView.setText("");
-    }
-  }
-
-  private void presentNewContactState(@NonNull Contact contact) {
-    actionButtonView.setText(R.string.SharedContactView_add_to_contacts);
-    actionButtonView.setOnClickListener(v -> {
-      if (eventListener != null) {
-        eventListener.onAddToContactsClicked(contact);
-      }
-    });
-  }
-
-  private void presentAddedContactState(@NonNull ContactInfo contactInfo, @Nullable Phone displayNumber) {
-    if (displayNumber == null) {
-      actionButtonContainerView.setVisibility(GONE);
-      return;
-    }
-
-    actionButtonContainerView.setVisibility(VISIBLE);
-
-    if (contactInfo.isPush(displayNumber)) {
-      actionButtonView.setText(R.string.SharedContactView_message);
-
-      actionButtonView.setOnClickListener(v -> {
-        if (eventListener != null) {
-          eventListener.onMessageClicked(displayNumber);
-        }
-      });
-    } else {
-      actionButtonView.setText(R.string.SharedContactView_invite_to_signal);
-
-      actionButtonView.setOnClickListener(v -> {
-        if (eventListener != null) {
-          eventListener.onInviteClicked(displayNumber);
-        }
-      });
-    }
-  }
-
-  public View getAvatarView() {
-    return avatarView;
-  }
-
-  public void setEventListener(EventListener listener) {
-    this.eventListener = listener;
+    SharedContactInjector.getInstance(getContext()).load(sharedContactSlide, this);
   }
 
   @Override
   public void setContact(@Nullable Contact contact) {
+    this.contact = contact;
+
     if (contact != null) {
-      nameView.setText(contact.getName().getDisplayName());
-      numberView.setText("We'll do that next");
+      nameView.setText(ContactUtil.getDisplayName(contact));
+
+      Phone displayNumber = ContactUtil.getDisplayNumber(contact);
+
+      // TODO(greyson): Make one big util?
+      if (displayNumber != null) {
+        numberView.setText(ContactUtil.getPrettyPhoneNumber(displayNumber, locale));
+      } else if (contact.getEmails().size() > 0) {
+        numberView.setText(contact.getEmails().get(0).getEmail());
+      } else {
+        numberView.setText("");
+      }
+
+      presentActionButtons(ContactUtil.getRecipients(getContext(), contact));
     } else {
       nameView.setText("");
       numberView.setText("");
@@ -192,9 +122,8 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
   @Override
   public void setAvatar(@Nullable InputStream inputStream) {
     if (inputStream != null) {
-      Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-
-      glideRequests.load(bitmap)
+      glideRequests.load(inputStream)
+                   .fallback(R.drawable.ic_contact_picture)
                    .circleCrop()
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                    .into(avatarView);
@@ -206,9 +135,62 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     }
   }
 
+  @Override
+  public void onModified(Recipient recipient) {
+    presentActionButtons(Collections.singletonList(recipient));
+  }
+
+  public void setEventListener(@NonNull EventListener eventListener) {
+    this.eventListener = eventListener;
+  }
+
+  private void presentActionButtons(@NonNull List<Recipient> recipients) {
+    for (Recipient recipient : recipients) {
+      activeRecipients.put(recipient.getAddress().serialize(), recipient);
+    }
+
+    // TODO(greyson): Make one forloop to go through this
+    Stream.of(activeRecipients.values()).forEach(recipient -> { recipient.removeListener(this); recipient.addListener(this);});
+
+    List<Recipient> pushUsers   = Stream.of(activeRecipients.values())
+                                        .filter(recipient -> recipient.getRegistered() == RecipientDatabase.RegisteredState.REGISTERED)
+                                        .toList();
+
+    List<Recipient> systemUsers = Stream.of(activeRecipients.values())
+                                        .filter(recipient -> recipient.getRegistered() != RecipientDatabase.RegisteredState.REGISTERED && recipient.isSystemContact())
+                                        .toList();
+
+    if (!pushUsers.isEmpty()) {
+      actionButtonView.setText(R.string.SharedContactView_message);
+      actionButtonView.setOnClickListener(v -> {
+        if (eventListener != null) {
+          eventListener.onMessageClicked(pushUsers);
+        }
+      });
+    } else if (!systemUsers.isEmpty()) {
+      actionButtonView.setText(R.string.SharedContactView_invite_to_signal);
+      actionButtonView.setOnClickListener(v -> {
+        if (eventListener != null) {
+          eventListener.onInviteClicked(systemUsers);
+        }
+      });
+    } else {
+      actionButtonView.setText(R.string.SharedContactView_add_to_contacts);
+      actionButtonView.setOnClickListener(v -> {
+        if (eventListener != null) {
+          eventListener.onAddToContactsClicked(sharedContactSlide, contact);
+        }
+      });
+    }
+  }
+
+  public @NonNull View getAvatarView() {
+    return avatarView;
+  }
+
   public interface EventListener {
-    void onAddToContactsClicked(@NonNull Contact contact);
-    void onInviteClicked(@NonNull Phone phoneNumber);
-    void onMessageClicked(@NonNull Phone phoneNumber);
+    void onAddToContactsClicked(@NonNull SharedContactSlide sharedContactSlide, @NonNull Contact contact);
+    void onInviteClicked(@NonNull List<Recipient> choices);
+    void onMessageClicked(@NonNull List<Recipient> choices);
   }
 }

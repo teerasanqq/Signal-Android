@@ -6,13 +6,11 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.thoughtcrime.securesms.util.JsonUtils;
-
 import java.io.Serializable;
 
 public class PostalAddress implements Selectable, Parcelable, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final Type   type;
   private final String label;

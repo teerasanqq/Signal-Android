@@ -5,13 +5,11 @@ import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.thoughtcrime.securesms.util.JsonUtils;
-
 import java.io.Serializable;
 
 public class Email implements Selectable, Parcelable, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final String email;
   private final Type   type;

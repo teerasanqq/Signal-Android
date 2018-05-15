@@ -2,18 +2,14 @@ package org.thoughtcrime.securesms.contactshare.model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.thoughtcrime.securesms.util.JsonUtils;
-import org.w3c.dom.Text;
 
 import java.io.Serializable;
 
 public class Name implements Parcelable, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final String displayName;
   private final String givenName;

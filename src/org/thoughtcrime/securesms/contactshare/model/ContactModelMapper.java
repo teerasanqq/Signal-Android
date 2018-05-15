@@ -1,18 +1,9 @@
 package org.thoughtcrime.securesms.contactshare.model;
 
-import android.content.Context;
 import android.support.annotation.NonNull;
-import android.util.Log;
 
-import org.greenrobot.eventbus.EventBus;
-import org.thoughtcrime.securesms.attachments.Attachment;
-import org.thoughtcrime.securesms.events.PartProgressEvent;
-import org.thoughtcrime.securesms.mms.PartAuthority;
-import org.whispersystems.signalservice.api.messages.SignalServiceAttachment;
 import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,26 +11,6 @@ import java.util.List;
 public class ContactModelMapper {
 
   private static final String TAG = ContactModelMapper.class.getSimpleName();
-
-//  public static List<SharedContact> localToRemote(@NonNull Context context, @NonNull List<ContactWithAvatar> contactsWithAvatar) {
-//    List<SharedContact> sharedContacts = new ArrayList<>(contactsWithAvatar.size());
-//
-//    for (ContactWithAvatar contactWithAvatar : contactsWithAvatar) {
-//      sharedContacts.add(localToRemote(context, contactWithAvatar));
-//    }
-//
-//    return sharedContacts;
-//  }
-//
-//  public static SharedContact localToRemote(@NonNull Context context, @NonNull ContactWithAvatar contactWithAvatar) {
-//    SharedContact.Builder builder = localToRemoteBuilder(contactWithAvatar.getContact());
-//    if (contactWithAvatar.getAvatarUri() != null) {
-//      builder.setAvatar(SharedContact.Avatar.newBuilder().withAttachment(getAttachmentFor(context, contactWithAvatar.getAvatarUri()))
-//                                                         .withProfileFlag(contactWithAvatar.getContact().getAvatarState().isProfile())
-//                                                         .build());
-//    }
-//    return builder.build();
-//  }
 
   public static SharedContact localToRemote(@NonNull Contact contact) {
     return localToRemoteBuilder(contact).build();
@@ -203,30 +174,5 @@ public class ContactModelMapper {
       case WORK: return SharedContact.PostalAddress.Type.WORK;
       default:   return SharedContact.PostalAddress.Type.CUSTOM;
     }
-  }
-
-
-  private static SignalServiceAttachment getAttachmentFor(Context context, Attachment attachment) {
-    try {
-      if (attachment.getDataUri() == null || attachment.getSize() == 0) {
-        throw new IOException("Assertion failed, outgoing attachment has no data!");
-      }
-
-      InputStream is = PartAuthority.getAttachmentStream(context, attachment.getDataUri());
-
-      return SignalServiceAttachment.newStreamBuilder()
-          .withStream(is)
-          .withContentType(attachment.getContentType())
-          .withLength(attachment.getSize())
-          .withFileName(attachment.getFileName())
-          .withVoiceNote(attachment.isVoiceNote())
-          .withWidth(attachment.getWidth())
-          .withHeight(attachment.getHeight())
-          .withListener((total, progress) -> EventBus.getDefault().postSticky(new PartProgressEvent(attachment, total, progress)))
-          .build();
-    } catch (IOException ioe) {
-      Log.w(TAG, "Couldn't open attachment", ioe);
-    }
-    return null;
   }
 }

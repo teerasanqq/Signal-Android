@@ -18,8 +18,6 @@ package org.thoughtcrime.securesms;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.arch.lifecycle.LifecycleOwner;
-import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -55,16 +53,15 @@ import android.view.animation.AnimationUtils;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.thoughtcrime.securesms.BindableConversationItem.ExistingContactSelectedListener;
 import org.thoughtcrime.securesms.ConversationAdapter.HeaderViewHolder;
 import org.thoughtcrime.securesms.ConversationAdapter.ItemClickListener;
+import org.thoughtcrime.securesms.contactshare.BuildAddToContactsIntentTask;
 import org.thoughtcrime.securesms.contactshare.ContactRepository;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
+import org.thoughtcrime.securesms.contactshare.RefreshContactTask;
+import org.thoughtcrime.securesms.contactshare.RetrieveThreadIdTask;
 import org.thoughtcrime.securesms.contactshare.SharedContactDetailsActivity;
-import org.thoughtcrime.securesms.contactshare.SharedContactViewModel;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.ContactRetriever;
-import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
 import org.thoughtcrime.securesms.database.MmsSmsDatabase;
 import org.thoughtcrime.securesms.database.RecipientDatabase;
@@ -72,9 +69,9 @@ import org.thoughtcrime.securesms.database.loaders.ConversationLoader;
 import org.thoughtcrime.securesms.database.model.MediaMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.MessageRecord;
 import org.thoughtcrime.securesms.database.model.MmsMessageRecord;
-import org.thoughtcrime.securesms.mms.AttachmentManager;
 import org.thoughtcrime.securesms.mms.GlideApp;
 import org.thoughtcrime.securesms.mms.OutgoingMediaMessage;
+import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.mms.Slide;
 import org.thoughtcrime.securesms.profiles.UnknownSenderView;
 import org.thoughtcrime.securesms.recipients.Recipient;
@@ -96,18 +93,17 @@ import java.util.Set;
 
 @SuppressLint("StaticFieldLeak")
 public class ConversationFragment extends Fragment
-  implements LoaderManager.LoaderCallbacks<Cursor>, BindableConversationItem.ViewModelRetriever
+  implements LoaderManager.LoaderCallbacks<Cursor>
 {
   private static final String TAG = ConversationFragment.class.getSimpleName();
 
-  private static final long   PARTIAL_CONVERSATION_LIMIT  = 500L;
-  private static final int    CODE_PICK_CONTACT_TO_ADD_TO = 77;
+  private static final long PARTIAL_CONVERSATION_LIMIT = 500L;
+  private static final int  CODE_ADD_EDIT_CONTACT      = 77;
 
   private final ActionModeCallback actionModeCallback     = new ActionModeCallback();
   private final ItemClickListener  selectionClickListener = new ConversationFragmentItemClickListener();
 
   private ConversationFragmentListener    listener;
-  private ExistingContactSelectedListener existingContactSelectedListener;
 
   private Recipient                   recipient;
   private long                        threadId;
@@ -123,6 +119,7 @@ public class ConversationFragment extends Fragment
   private View                        scrollToBottomButton;
   private TextView                    scrollDateHeader;
   private ContactRepository           contactRepository;
+  private Contact pendingAddedContact;
 
   @Override
   public void onCreate(Bundle icicle) {
@@ -214,7 +211,7 @@ public class ConversationFragment extends Fragment
 
   private void initializeListAdapter() {
     if (this.recipient != null && this.threadId != -1) {
-      ConversationAdapter adapter = new ConversationAdapter(getActivity(), GlideApp.with(this), locale, selectionClickListener, null, this.recipient, this);
+      ConversationAdapter adapter = new ConversationAdapter(getActivity(), GlideApp.with(this), locale, selectionClickListener, null, this.recipient);
       list.setAdapter(adapter);
       list.addItemDecoration(new StickyHeaderDecoration(adapter, false, false));
 
@@ -523,22 +520,6 @@ public class ConversationFragment extends Fragment
     }
   }
 
-  @Override
-  public SharedContactViewModel getSharedContactViewModel(@NonNull String key, @NonNull ContactRetriever retriever) {
-    return ViewModelProviders.of(this, new SharedContactViewModel.RetrieverFactory(retriever, contactRepository))
-                             .get(key, SharedContactViewModel.class);
-  }
-
-  @Override
-  public LifecycleOwner getLifecycleOwner() {
-    return this;
-  }
-
-  @Override
-  public void setExistingContactSelectedListener(@Nullable ExistingContactSelectedListener listener) {
-    existingContactSelectedListener = listener;
-  }
-
   public interface ConversationFragmentListener {
     void setThreadId(long threadId);
     void handleReplyMessage(MessageRecord messageRecord);
@@ -694,40 +675,48 @@ public class ConversationFragment extends Fragment
     }
 
     @Override
-    public void onSharedContactDetailsClicked(@NonNull Contact sharedContact, @NonNull View avatarTransitionView) {
-      Log.w(TAG, "Clicked on shared contact details.");
+    public void onSharedContactDetailsClicked(@NonNull SharedContactSlide sharedContactSlide, @NonNull View avatarTransitionView) {
       if (getContext() != null && getActivity() != null) {
         Bundle bundle = ActivityOptionsCompat.makeSceneTransitionAnimation(getActivity(), avatarTransitionView, "avatar").toBundle();
-        ActivityCompat.startActivity(getActivity(), SharedContactDetailsActivity.getIntent(getContext(), sharedContact), bundle);
+        ActivityCompat.startActivity(getActivity(), SharedContactDetailsActivity.getIntent(getContext(), sharedContactSlide), bundle);
       }
     }
 
     @Override
-    public void onAddToContactClicked(@NonNull Contact sharedContact, @NonNull SharedContactViewModel viewModel) {
-      if (getContext() == null) {
-        return;
+    public void onAddToContactsClicked(@NonNull SharedContactSlide sharedContactSlide, @NonNull Contact sharedContact) {
+      if (getContext() != null && sharedContactSlide.getUri() != null) {
+        pendingAddedContact = sharedContact;
+        new BuildAddToContactsIntentTask(getContext(), sharedContactSlide, intent -> {
+          if (intent != null && getContext() != null) {
+            startActivityForResult(intent, CODE_ADD_EDIT_CONTACT);
+          } else {
+            Log.w(TAG, "Failed to create an intent to add a contact.");
+          }
+        }).execute();
       }
-
-      CharSequence[] options = new CharSequence[] { getString(R.string.SharedContactDetailsActivity_add_as_new_contact),
-                                                    getString(R.string.SharedContactDetailsActivity_add_to_existing_contact) };
-      new AlertDialog.Builder(getContext())
-          .setItems(options, (dialog, which) -> {
-            if (which == 0) {
-              viewModel.saveAsNewContact();
-            } else {
-              AttachmentManager.selectContactInfo(ConversationFragment.this, CODE_PICK_CONTACT_TO_ADD_TO);
-            }
-          })
-          .create()
-          .show();
     }
 
     @Override
-    public void onOpenConversation(@NonNull Address address, long threadId, @Nullable String text) {
-      if (getContext() == null) {
-        return;
-      }
-      CommunicationActions.startConversation(getContext(), address, threadId, text);
+    public void onMessageSharedContactClicked(@NonNull List<Recipient> choices) {
+      selectNumberAndOpenConversation(choices, null);
+    }
+
+    @Override
+    public void onInviteSharedContactClicked(@NonNull List<Recipient> choices) {
+      selectNumberAndOpenConversation(choices, getString(R.string.InviteActivity_lets_switch_to_signal, "https://sgnl.link/1KpeYmF"));
+    }
+
+    private void selectNumberAndOpenConversation(@NonNull List<Recipient> choices, @Nullable String message) {
+      if (getContext() == null) return;
+
+      ContactUtil.selectRecipient(getContext(), choices, recipient -> {
+        if (getContext() == null) return;
+
+        new RetrieveThreadIdTask(getContext(), recipient, threadId -> {
+          if (getContext() == null) return;
+          CommunicationActions.startConversation(getContext(), recipient.getAddress(), threadId, message);
+        }).execute();
+      });
     }
   }
 
@@ -735,13 +724,9 @@ public class ConversationFragment extends Fragment
   public void onActivityResult(int requestCode, int resultCode, Intent data) {
     super.onActivityResult(requestCode, resultCode, data);
 
-    if (data == null || data.getData() == null || resultCode != Activity.RESULT_OK) {
-      return;
-    }
-
-    if (requestCode == CODE_PICK_CONTACT_TO_ADD_TO && existingContactSelectedListener != null) {
-      long contactId = ContactUtil.getContactIdFromUri(data.getData());
-      existingContactSelectedListener.onExistingContactSelected(contactId);
+    if (requestCode == CODE_ADD_EDIT_CONTACT && pendingAddedContact != null && getContext() != null) {
+      new RefreshContactTask(getContext(), pendingAddedContact).execute();
+      pendingAddedContact = null;
     }
   }
 

@@ -12,6 +12,7 @@ import org.thoughtcrime.securesms.util.Conversions;
 
 import java.io.InputStream;
 
+// TODO(greyson): Switch to using a ContactStream so we can do caching correctly
 public class InputStreamLoader implements ModelLoader<InputStream, InputStream> {
   @Nullable
   @Override

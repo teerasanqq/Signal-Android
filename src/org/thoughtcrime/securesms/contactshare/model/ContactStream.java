@@ -4,7 +4,6 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import org.thoughtcrime.securesms.util.Conversions;
-import org.thoughtcrime.securesms.util.Util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -13,32 +12,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.io.SequenceInputStream;
 import java.util.Arrays;
 import java.util.Collections;
 
-// TODO: The interface is probably ok, but we need to rework the internals to not store crap in memory.
-// TODO: Will probably need to stop using protos and do something custom?
+// TODO(greyson): Break this into two separate classes, probably
 public final class ContactStream {
 
   private ContactStream() { }
-
-  public static class Writer {
-
-    private final Contact      contact;
-    private final InputStream  attachmentStream;
-
-    public Writer(@NonNull Contact contact, @Nullable InputStream attachmentStream) {
-      this.contact = contact;
-      this.attachmentStream = attachmentStream;
-    }
-
-    public void write(@NonNull OutputStream outputStream) throws IOException {
-      Stream stream = new Stream(contact, attachmentStream);
-      Util.copy(stream, outputStream);
-    }
-  }
 
   public static class Stream extends InputStream {
 
@@ -59,12 +40,7 @@ public final class ContactStream {
       InputStream contactHeaderStream = new ByteArrayInputStream(contactHeader);
       InputStream versionStream       = new ByteArrayInputStream(version);
 
-
       if (attachmentStream != null) {
-        // REMOVE
-        byte[] image = Util.readFully(attachmentStream);
-        attachmentStream = new ByteArrayInputStream(image);
-        // REMOVE
         inputStream = new SequenceInputStream(Collections.enumeration(Arrays.asList(versionStream, contactHeaderStream, contactStream, attachmentStream)));
       } else {
         inputStream = new SequenceInputStream(Collections.enumeration(Arrays.asList(versionStream, contactHeaderStream, contactStream)));
@@ -148,8 +124,7 @@ public final class ContactStream {
 
     public @Nullable InputStream getAvatar() throws IOException {
       if (inputStream.available() > 0) {
-        byte[] image = Util.readFully(inputStream);
-        return new ByteArrayInputStream(image);
+        return inputStream;
       }
       return null;
     }

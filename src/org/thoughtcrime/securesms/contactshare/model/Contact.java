@@ -5,18 +5,13 @@ import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.thoughtcrime.securesms.attachments.Attachment;
-import org.thoughtcrime.securesms.database.Address;
-
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Contact implements Parcelable, ContactRetriever, Serializable {
+public class Contact implements Parcelable, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   private final Name                name;
   private final String              organization;
@@ -51,11 +46,6 @@ public class Contact implements Parcelable, ContactRetriever, Serializable {
          in.createTypedArrayList(PostalAddress.CREATOR),
          AvatarState.valueOf(in.readString()),
          in.readInt());
-  }
-
-  @Override
-  public @Nullable Contact getContact() {
-    return this;
   }
 
   public @NonNull Name getName() {

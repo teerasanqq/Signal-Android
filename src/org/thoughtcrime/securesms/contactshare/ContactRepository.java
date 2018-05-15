@@ -1,6 +1,5 @@
 package org.thoughtcrime.securesms.contactshare;
 
-import android.content.ContentProviderOperation;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -15,8 +14,6 @@ import org.thoughtcrime.securesms.contacts.ContactsDatabase;
 import org.thoughtcrime.securesms.contacts.avatars.ContactPhoto;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.Contact.AvatarState;
-import org.thoughtcrime.securesms.contactshare.model.ContactAvatar;
-import org.thoughtcrime.securesms.contactshare.model.ContactRetriever;
 import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.contactshare.model.Email;
 import org.thoughtcrime.securesms.contactshare.model.Name;
@@ -25,15 +22,10 @@ import org.thoughtcrime.securesms.contactshare.model.PostalAddress;
 import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.database.RecipientDatabase.RegisteredState;
 import org.thoughtcrime.securesms.database.ThreadDatabase;
-import org.thoughtcrime.securesms.mms.PartAuthority;
-import org.thoughtcrime.securesms.providers.PersistentBlobProvider;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.util.DirectoryHelper;
-import org.thoughtcrime.securesms.util.MediaUtil;
-import org.thoughtcrime.securesms.util.Util;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -76,316 +68,6 @@ public class ContactRepository {
       }
       callback.onComplete(contactsWithAvatars);
     });
-  }
-
-  void retrieveContact(@NonNull ContactRetriever retriever, @NonNull NullableValueCallback<Contact> callback) {
-    executor.execute(() -> {
-      callback.onComplete(retriever.getContact());
-    });
-  }
-
-  void saveAsNewContact(@NonNull Contact contact, @NonNull ContactUpdateCallback callback) {
-    executor.execute(() -> {
-      callback.onComplete(null);
-//      ArrayList<ContentProviderOperation> ops = buildNewContactOperations(contact);
-//
-//      try {
-//        ContentProviderResult[] results = context.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
-//        if (results.length == 0) {
-//          Log.e(TAG, "Failed to insert a system contact - no successful results.");
-//          callback.onComplete(null);
-//          return;
-//        }
-//
-//        long rawContactId = ContactUtil.getContactIdFromUri(results[0].uri);
-//        long contactId    = contactsDatabase.getContactIdFromRawContactId(rawContactId);
-//
-//        if (contactId <= 0) {
-//          Log.e(TAG, "Failed to insert a system contact - invalid ID.");
-//          callback.onComplete(null);
-//          return;
-//        }
-//
-//        Contact newContact = getContact(contactId);
-//
-//        if (newContact == null) {
-//          Log.e(TAG, "Inserted a new contact in the system, but failed to retrieve it. Likely failed to save some necessary data, like the name. Deleting bad system contact.");
-//          boolean deleteSuccess = contactsDatabase.deleteContact(rawContactId);
-//          Log.e(TAG, "Successfully deleted bad contact? " + Boolean.toString(deleteSuccess));
-//
-//          callback.onComplete(null);
-//          return;
-//        }
-//
-//        callback.onComplete(buildContactInfo(newContact));
-//
-//      } catch (RemoteException | OperationApplicationException e) {
-//        Log.e(TAG,"Failed to insert a system contact due to an exception.", e);
-//        callback.onComplete(null);
-//      }
-    });
-  }
-
-  void saveDetailsToExistingContact(long contactId, @NonNull Contact contact, @NonNull ContactUpdateCallback callback) {
-    executor.execute(() -> {
-      callback.onComplete(null);
-//      Contact existing = getContact(contactId);
-//
-//      if (existing == null) {
-//        Log.w(TAG, "Failed to find the contact we're saving to.");
-//        callback.onComplete(null);
-//        return;
-//      }
-//
-//      long rawContactId = contactsDatabase.getRawContactIdFromContactId(contactId);
-//      if (rawContactId <= 0) {
-//        Log.w(TAG, "Failed to retrieve a raw contact ID for the contact we're saving to.");
-//        callback.onComplete(null);
-//        return;
-//      }
-//
-//      ContactDiff contactDiff = buildContactDiff(existing, contact);
-//
-//      ArrayList<ContentProviderOperation> ops = new ArrayList<>();
-//      for (Phone phone : contactDiff.getPhoneNumbers()) {
-//        ops.add(getPhoneInsertOperation(phone, rawContactId));
-//      }
-//
-//      for (Email email : contactDiff.getEmails()) {
-//        ops.add(getEmailInsertOperation(email, rawContactId));
-//      }
-//
-//      for (PostalAddress postalAddress : contactDiff.getPostalAddresses()) {
-//        ops.add(getPostalAddressInsertOperation(postalAddress, rawContactId));
-//      }
-//
-//      if (contactDiff.getOrganization() != null) {
-//        ops.add(getOrganizationInsertOperation(contactDiff.getOrganization(), rawContactId));
-//      }
-//
-//      if (contactDiff.getAvatar() != null) {
-//        ContentProviderOperation op = getAvatarInsertOperation(contactDiff.getAvatar(), rawContactId);
-//        if (op != null) {
-//          ops.add(op);
-//        }
-//      }
-//
-//      try {
-//        context.getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
-//      } catch (RemoteException | OperationApplicationException e) {
-//        Log.e(TAG, "Failed to update the existing contact with new details.", e);
-//        callback.onComplete(null);
-//        return;
-//      }
-//
-//      Contact updated = getContact(contactId);
-//      callback.onComplete(updated != null ? buildContactInfo(updated) : null);
-    });
-  }
-
-  void getThreadId(@NonNull Address address, @NonNull ValueCallback<Long> callback) {
-    executor.execute(() -> {
-      Recipient recipient = Recipient.from(context, address, false);
-      callback.onComplete(threadDatabase.getThreadIdFor(recipient));
-    });
-  }
-
-  void getResolvedRecipient(@NonNull Phone phoneNumber, @NonNull ValueCallback<Recipient> callback) {
-    executor.execute(() -> callback.onComplete(Recipient.from(context, Address.fromExternal(context, phoneNumber.getNumber()), false)));
-  }
-
-  void getMatchingExistingContact(@NonNull Contact contact, @NonNull ContactMatchCallback callback) {
-    executor.execute(() -> {
-      callback.onComplete(null);
-//      long contactId = queryForContactId(contact);
-//
-//      if (contactId <= 0) {
-//        callback.onComplete(null);
-//        return;
-//      }
-//
-//      Contact existingContact = getContact(contactId);
-//      if (existingContact == null) {
-//        callback.onComplete(null);
-//        return;
-//      }
-//
-//      callback.onComplete(isSuperSet(existingContact, contact) ? buildContactInfo(existingContact) : null);
-    });
-  }
-
-  private @NonNull ContactDiff buildContactDiff(@NonNull Contact existing, @NonNull Contact test) {
-    return new ContactDiff();
-//    ContactDiff diff = new ContactDiff();
-//
-//    Set<String> numbers = new HashSet<>();
-//    Stream.of(existing.getPhoneNumbers()).forEach(phone -> numbers.add(phone.getNumber()));
-//
-//    for (Phone phone : test.getPhoneNumbers()) {
-//      if (!numbers.contains(phone.getNumber())) {
-//        diff.addPhone(phone);
-//      }
-//    }
-//
-//    Set<String> emails = new HashSet<>();
-//    Stream.of(existing.getEmails()).forEach(email -> emails.add(email.getEmail()));
-//
-//    for (Email email : test.getEmails()) {
-//      if (!emails.contains(email.getEmail())) {
-//        diff.addEmail(email);
-//      }
-//    }
-//
-//    Set<String> postalAddresses = new HashSet<>();
-//    Stream.of(existing.getPostalAddresses()).forEach(postalAddress ->  postalAddresses.add(postalAddress.toString()));
-//
-//    for (PostalAddress postalAddress : test.getPostalAddresses()) {
-//      if (!postalAddresses.contains(postalAddress.toString())) {
-//        diff.addPostalAddress(postalAddress);
-//      }
-//    }
-//
-//    if (TextUtils.isEmpty(existing.getOrganization()) && !TextUtils.isEmpty(test.getOrganization())) {
-//      diff.setOrganization(test.getOrganization());
-//    }
-//
-//    boolean testHasValidAvatar = test.getAvatarState() != null && !test.getAvatarState().isProfile();
-//    if (existing.getAvatarState() == null && testHasValidAvatar) {
-//      diff.setAvatar(test.getAvatarState());
-//    }
-//
-//    return diff;
-  }
-
-  private ArrayList<ContentProviderOperation> buildNewContactOperations(@NonNull Contact contact) {
-    ArrayList<ContentProviderOperation> ops = new ArrayList<>();
-
-    ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
-        .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
-        .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
-        .build());
-
-    ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-        .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, contact.getName().getGivenName())
-        .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, contact.getName().getFamilyName())
-        .withValue(ContactsContract.CommonDataKinds.StructuredName.PREFIX, contact.getName().getPrefix())
-        .withValue(ContactsContract.CommonDataKinds.StructuredName.SUFFIX, contact.getName().getSuffix())
-        .withValue(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME, contact.getName().getMiddleName())
-        .build());
-
-    if (!TextUtils.isEmpty(contact.getOrganization())) {
-      ops.add(getOrganizationInsertOperation(contact.getOrganization(), 0));
-    }
-
-    for (Phone phoneNumber : contact.getPhoneNumbers()) {
-      ops.add(getPhoneInsertOperation(phoneNumber, 0));
-    }
-
-    for (Email email : contact.getEmails()) {
-      ops.add(getEmailInsertOperation(email, 0));
-    }
-
-    for (PostalAddress postalAddress : contact.getPostalAddresses()) {
-      ops.add(getPostalAddressInsertOperation(postalAddress, 0));
-    }
-
-//    if (contact.getAvatarState() != null && !contact.getAvatarState().isProfile()) {
-//      ContentProviderOperation op = getAvatarInsertOperation(contact.getAvatarState(), 0);
-//      if (op != null) {
-//        ops.add(op);
-//      }
-//    }
-
-    return ops;
-  }
-
-  private @NonNull ContentProviderOperation getOrganizationInsertOperation(@NonNull String organization, long contactId) {
-    ContentProviderOperation.Builder builder = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                                                       .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE)
-                                                                       .withValue(ContactsContract.CommonDataKinds.Organization.COMPANY, organization);
-    if (contactId > 0) {
-      builder.withValue(ContactsContract.Data.RAW_CONTACT_ID, contactId);
-    } else {
-      builder.withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0);
-    }
-
-    return builder.build();
-  }
-
-  private @NonNull ContentProviderOperation getPhoneInsertOperation(@NonNull Phone phoneNumber, long contactId) {
-    ContentProviderOperation.Builder builder = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                                                       .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                                                                       .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber.getNumber())
-                                                                       .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, getSystemType(phoneNumber.getType()))
-                                                                       .withValue(ContactsContract.CommonDataKinds.Phone.LABEL, phoneNumber.getLabel());
-    if (contactId > 0) {
-      builder.withValue(ContactsContract.Data.RAW_CONTACT_ID, contactId);
-    } else {
-      builder.withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0);
-    }
-
-    return builder.build();
-  }
-
-  private @NonNull ContentProviderOperation getEmailInsertOperation(@NonNull Email email, long contactId) {
-    ContentProviderOperation.Builder builder = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                                                       .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
-                                                                       .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email.getEmail())
-                                                                       .withValue(ContactsContract.CommonDataKinds.Email.TYPE, getSystemType(email.getType()))
-                                                                       .withValue(ContactsContract.CommonDataKinds.Email.LABEL, email.getLabel());
-
-    if (contactId > 0) {
-      builder.withValue(ContactsContract.Data.RAW_CONTACT_ID, contactId);
-    } else {
-      builder.withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0);
-    }
-
-    return builder.build();
-  }
-
-  private @NonNull ContentProviderOperation getPostalAddressInsertOperation(@NonNull PostalAddress postalAddress, long contactId) {
-    ContentProviderOperation.Builder builder = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                                                       .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE)
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.TYPE, getSystemType(postalAddress.getType()))
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.LABEL, postalAddress.getLabel())
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.STREET, postalAddress.getStreet())
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.POBOX, postalAddress.getPoBox())
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.NEIGHBORHOOD, postalAddress.getNeighborhood())
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.CITY, postalAddress.getCity())
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.REGION, postalAddress.getRegion())
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.POSTCODE, postalAddress.getPostalCode())
-                                                                       .withValue(ContactsContract.CommonDataKinds.StructuredPostal.COUNTRY, postalAddress.getCountry());
-
-    if (contactId > 0) {
-      builder.withValue(ContactsContract.Data.RAW_CONTACT_ID, contactId);
-    } else {
-      builder.withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0);
-    }
-
-    return builder.build();
-  }
-
-  private @Nullable ContentProviderOperation getAvatarInsertOperation(@NonNull ContactAvatar avatar, long contactId) {
-    try (InputStream avatarStream = avatar.getImageStream(context)) {
-      byte[] avatarBytes = Util.readFully(avatarStream);
-
-      ContentProviderOperation.Builder builder = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                                                         .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                                                                         .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, avatarBytes);
-
-      if (contactId > 0) {
-        builder.withValue(ContactsContract.Data.RAW_CONTACT_ID, contactId);
-      } else {
-        builder.withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0);
-      }
-
-      return builder.build();
-    } catch (IOException e) {
-      Log.e(TAG, "Failed to read avatar bytes. Will still attempt to add the contact, but no photo will be set.", e);
-    }
-    return null;
   }
 
   @WorkerThread
@@ -567,30 +249,6 @@ public class ContactRepository {
     return null;
   }
 
-  @WorkerThread
-  private long queryForContactId(@NonNull Contact contact) {
-    long contactId = -1;
-
-    if (contact.getPhoneNumbers().size() > 0) {
-      contactId = contactsDatabase.getContactIdByPhoneNumber(contact.getPhoneNumbers().get(0).getNumber());
-    }
-
-    if (contactId < 0 && contact.getPhoneNumbers().size() > 0) {
-      contactId = contactsDatabase.getContactIdByPhoneNumber(ContactUtil.getLocalPhoneNumber(contact.getPhoneNumbers().get(0).getNumber(), locale));
-    }
-
-    if (contactId <= 0 && contact.getEmails().size() > 0) {
-      contactId = contactsDatabase.getContactIdByEmail(contact.getEmails().get(0).getEmail());
-    }
-
-    return contactId;
-  }
-
-  @WorkerThread
-  private @NonNull Uri persistContactPhoto(@NonNull Uri uri) throws IOException {
-    return PersistentBlobProvider.getInstance(context).create(context, PartAuthority.getAttachmentStream(context, uri), MediaUtil.IMAGE_JPEG, null, null);
-  }
-
   private Phone.Type phoneTypeFromContactType(int type) {
     switch (type) {
       case ContactsContract.CommonDataKinds.Phone.TYPE_HOME:
@@ -625,47 +283,8 @@ public class ContactRepository {
     return PostalAddress.Type.CUSTOM;
   }
 
-  private int getSystemType(Phone.Type type) {
-    switch (type) {
-      case HOME:   return ContactsContract.CommonDataKinds.Phone.TYPE_HOME;
-      case MOBILE: return ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE;
-      case WORK:   return ContactsContract.CommonDataKinds.Phone.TYPE_WORK;
-      default:     return ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM;
-    }
-  }
-
-  private int getSystemType(Email.Type type) {
-    switch (type) {
-      case HOME:   return ContactsContract.CommonDataKinds.Email.TYPE_HOME;
-      case MOBILE: return ContactsContract.CommonDataKinds.Email.TYPE_MOBILE;
-      case WORK:   return ContactsContract.CommonDataKinds.Email.TYPE_WORK;
-      default:     return ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM;
-    }
-  }
-
-  private int getSystemType(PostalAddress.Type type) {
-    switch (type) {
-      case HOME: return ContactsContract.CommonDataKinds.StructuredPostal.TYPE_HOME;
-      case WORK: return ContactsContract.CommonDataKinds.StructuredPostal.TYPE_WORK;
-      default:   return ContactsContract.CommonDataKinds.StructuredPostal.TYPE_CUSTOM;
-    }
-  }
-
   interface ValueCallback<T> {
     void onComplete(@NonNull T value);
-  }
-
-  interface NullableValueCallback<T> {
-    void onComplete(@Nullable T value);
-  }
-
-  interface ContactUpdateCallback {
-    void onComplete(@Nullable ContactInfo newContact);
-  }
-
-  interface ContactMatchCallback {
-    /** @param matchedContact A contact that is a superset of the provided contact, otherwise null.  */
-    void onComplete(@Nullable ContactInfo matchedContact);
   }
 
   private static class AvatarInfo {
@@ -707,56 +326,6 @@ public class ContactRepository {
 
     public boolean isPush(Phone phoneNumber) {
       return isPushMap.containsKey(phoneNumber) ? isPushMap.get(phoneNumber) : false;
-    }
-  }
-
-  private static class ContactDiff {
-
-    private final List<Phone>         phoneNumbers    = new LinkedList<>();
-    private final List<Email>         emails          = new LinkedList<>();
-    private final List<PostalAddress> postalAddresses = new LinkedList<>();
-
-    private String        organization;
-    private ContactAvatar avatar;
-
-    private void addPhone(@NonNull Phone phoneNumber) {
-      phoneNumbers.add(phoneNumber);
-    }
-
-    private @NonNull List<Phone> getPhoneNumbers() {
-      return phoneNumbers;
-    }
-
-    private void addEmail(@NonNull Email email) {
-      emails.add(email);
-    }
-
-    private @NonNull List<Email> getEmails() {
-      return emails;
-    }
-
-    private void addPostalAddress(@NonNull PostalAddress postalAddress) {
-      postalAddresses.add(postalAddress);
-    }
-
-    private @NonNull List<PostalAddress> getPostalAddresses() {
-      return postalAddresses;
-    }
-
-    private void setOrganization(@Nullable String organization) {
-      this.organization = organization;
-    }
-
-    private @Nullable String getOrganization() {
-      return organization;
-    }
-
-    private void setAvatar(@NonNull ContactAvatar avatar) {
-      this.avatar = avatar;
-    }
-
-    private @Nullable ContactAvatar getAvatar() {
-      return avatar;
     }
   }
 }
