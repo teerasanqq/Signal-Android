@@ -98,6 +98,8 @@ import org.thoughtcrime.securesms.contacts.ContactAccessor;
 import org.thoughtcrime.securesms.contacts.ContactAccessor.ContactData;
 import org.thoughtcrime.securesms.contactshare.ContactShareEditActivity;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
+import org.thoughtcrime.securesms.contactshare.RetrieveContactTask;
+import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
 import org.thoughtcrime.securesms.crypto.IdentityKeyParcelable;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
@@ -133,6 +135,7 @@ import org.thoughtcrime.securesms.mms.OutgoingMediaMessage;
 import org.thoughtcrime.securesms.mms.OutgoingSecureMediaMessage;
 import org.thoughtcrime.securesms.mms.QuoteId;
 import org.thoughtcrime.securesms.mms.QuoteModel;
+import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.mms.Slide;
 import org.thoughtcrime.securesms.mms.SlideDeck;
 import org.thoughtcrime.securesms.notifications.MarkReadReceiver;
@@ -2110,12 +2113,26 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
       author = messageRecord.getIndividualRecipient();
     }
 
-    // TODO: Quote stuff
-    inputPanel.setQuote(GlideApp.with(this),
-                        messageRecord.getDateSent(),
-                        author,
-                        messageRecord.getBody(),
-                        messageRecord.isMms() ? ((MmsMessageRecord) messageRecord).getSlideDeck() : new SlideDeck());
+    if (messageRecord.isMms() && ((MmsMessageRecord) messageRecord).getSlideDeck().getSharedContactSlide() != null) {
+      SharedContactSlide slide = ((MmsMessageRecord) messageRecord).getSlideDeck().getSharedContactSlide();
+
+      new RetrieveContactTask(this, slide, contact -> {
+        String displayName = ContactUtil.getDisplayName(contact);
+        String body        = getString(R.string.MessageNotifier_contact_message, displayName);
+
+        inputPanel.setQuote(GlideApp.with(this),
+                            messageRecord.getDateSent(),
+                            author,
+                            body,
+                            new SlideDeck());
+      }).execute();
+    } else {
+      inputPanel.setQuote(GlideApp.with(this),
+                          messageRecord.getDateSent(),
+                          author,
+                          messageRecord.getBody(),
+                          messageRecord.isMms() ? ((MmsMessageRecord) messageRecord).getSlideDeck() : new SlideDeck());
+    }
   }
 
   @Override

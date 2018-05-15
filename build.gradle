@@ -142,7 +142,7 @@ dependencies {
     }
 }
 
-// TODO: Add final lib-signal-service dependency and re-calculate checksums
+// TODO(greyson): Add final lib-signal-service dependency and re-calculate checksums
 dependencyVerification {
     verify = [
         'com.android.support:design:fa5c27a705310e95a8f4099c98777132ed901a0d69178942306bb34cd76f0d57',
