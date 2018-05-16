@@ -1,9 +1,11 @@
 package org.thoughtcrime.securesms.contactshare;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.TypedArray;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -11,7 +13,6 @@ import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -19,13 +20,13 @@ import android.widget.TextView;
 
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
+import org.thoughtcrime.securesms.ApplicationContext;
 import org.thoughtcrime.securesms.PassphraseRequiredActionBarActivity;
 import org.thoughtcrime.securesms.R;
-import org.thoughtcrime.securesms.contactshare.SharedContactInjector.ResolvedContact;
 import org.thoughtcrime.securesms.database.RecipientDatabase;
+import org.thoughtcrime.securesms.jobs.DirectoryRefreshJob;
 import org.thoughtcrime.securesms.mms.GlideApp;
 import org.thoughtcrime.securesms.mms.GlideRequests;
-import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.recipients.RecipientModifiedListener;
 import org.thoughtcrime.securesms.util.CommunicationActions;
@@ -34,21 +35,20 @@ import org.thoughtcrime.securesms.util.DynamicNoActionBarTheme;
 import org.thoughtcrime.securesms.util.DynamicTheme;
 import org.thoughtcrime.securesms.util.Util;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SharedContactDetailsActivity extends PassphraseRequiredActionBarActivity
-                                          implements SharedContactInjector.Target, RecipientModifiedListener
-{
+import static org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.*;
+
+public class SharedContactDetailsActivity extends PassphraseRequiredActionBarActivity implements RecipientModifiedListener {
 
   private static final String TAG = SharedContactDetailsActivity.class.getSimpleName();
 
-  private static final int    CODE_ADD_EDIT_CONTACT = 2323;
-  private static final String KEY_CONTACT_URI       = "contact_uri";
+  private static final int    CODE_ADD_EDIT_CONTACT   = 2323;
+  private static final String KEY_CONTACT_WITH_AVATAR = "contact_with_avatar";
 
   private ContactFieldAdapter contactFieldAdapter;
   private TextView            nameView;
@@ -62,20 +62,16 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
 
   private GlideRequests       glideRequests;
   private Contact             contact;
-  private Uri                 contactSlideUri;
+  private ContactWithAvatar   contactWithAvatar;
 
   private final DynamicTheme    dynamicTheme    = new DynamicNoActionBarTheme();
   private final DynamicLanguage dynamicLanguage = new DynamicLanguage();
 
   private final Map<String, Recipient> activeRecipients = new HashMap<>();
 
-  public static Intent getIntent(@NonNull Context context, @NonNull SharedContactSlide sharedContactSlide) {
-    if (sharedContactSlide.getUri() == null) {
-      throw new IllegalStateException("Slide must have a Uri.");
-    }
-
+  public static Intent getIntent(@NonNull Context context, @NonNull ContactWithAvatar contactWithAvatar) {
     Intent intent = new Intent(context, SharedContactDetailsActivity.class);
-    intent.putExtra(KEY_CONTACT_URI, sharedContactSlide.getUri());
+    intent.putExtra(KEY_CONTACT_WITH_AVATAR, contactWithAvatar);
     return intent;
   }
 
@@ -93,14 +89,17 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
       throw new IllegalStateException("You must supply arguments to this activity. Please use the #newInstance() method.");
     }
 
-    contactSlideUri = getIntent().getParcelableExtra(KEY_CONTACT_URI);
-    if (contactSlideUri == null) {
-      throw new IllegalStateException("You must supply a ContactSlide Uri to this fragment. Please use the #newInstance() method.");
+    contactWithAvatar = getIntent().getParcelableExtra(KEY_CONTACT_WITH_AVATAR);
+    if (contactWithAvatar == null) {
+      throw new IllegalStateException("You must supply a ContactWithAttachments to this fragment. Please use the #newInstance() method.");
     }
 
     initToolbar();
     initViews();
 
+    presentContact(contactWithAvatar.getContact());
+    presentActionButtons(ContactUtil.getRecipients(this, contactWithAvatar.getContact()));
+    presentAvatar(contactWithAvatar.getAvatarAttachment() != null ? contactWithAvatar.getAvatarAttachment().getDataUri() : null);
   }
 
   @Override
@@ -108,7 +107,6 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
     super.onResume();
     dynamicTheme.onCreate(this);
     dynamicTheme.onResume(this);
-    SharedContactInjector.load(this, contactSlideUri, this);
   }
 
   private void initToolbar() {
@@ -154,17 +152,7 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
     Util.runOnMain(() -> presentActionButtons(Collections.singletonList(recipient)));
   }
 
-  @Override
-  public void setResolvedContact(@Nullable ResolvedContact resolvedContact) {
-    if (resolvedContact != null) {
-      presentContact(resolvedContact.getContact());
-      presentActionButtons(resolvedContact.getRecipients());
-      presentAvatar(resolvedContact.getAvatarStream());
-    } else {
-      clearView();
-    }
-  }
-
+  @SuppressLint("StaticFieldLeak")
   private void presentContact(@Nullable Contact contact) {
     this.contact = contact;
 
@@ -173,13 +161,17 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
       numberView.setText(ContactUtil.getDisplayNumber(contact, dynamicLanguage.getCurrentLocale()));
 
       addButtonView.setOnClickListener(v -> {
-        new BuildAddToContactsIntentTask(this, contactSlideUri, intent -> {
-          if (intent != null) {
-            startActivityForResult(intent, CODE_ADD_EDIT_CONTACT);
-          } else {
-            Log.w(TAG, "Failed to create an intent to add a contact.");
+        new AsyncTask<Void, Void, Intent>() {
+          @Override
+          protected Intent doInBackground(Void... voids) {
+            return ContactUtil.buildAddToContactsIntent(SharedContactDetailsActivity.this, contactWithAvatar);
           }
-        }).execute();
+
+          @Override
+          protected void onPostExecute(Intent intent) {
+            startActivityForResult(intent, CODE_ADD_EDIT_CONTACT);
+          }
+        }.execute();
       });
 
       contactFieldAdapter.setFields(this, contact.getPhoneNumbers(), contact.getEmails(), contact.getPostalAddresses());
@@ -189,9 +181,9 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
     }
   }
 
-  public void presentAvatar(@Nullable InputStream inputStream) {
-    if (inputStream != null) {
-      glideRequests.load(inputStream)
+  public void presentAvatar(@Nullable Uri uri) {
+    if (uri != null) {
+      glideRequests.load(new DecryptableUri(uri))
           .fallback(R.drawable.ic_contact_picture)
           .circleCrop()
           .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -264,7 +256,9 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
     super.onActivityResult(requestCode, resultCode, data);
 
     if (requestCode == CODE_ADD_EDIT_CONTACT && contact != null) {
-      new RefreshContactTask(this, contact).execute();
+      ApplicationContext.getInstance(getApplicationContext())
+                        .getJobManager()
+                        .add(new DirectoryRefreshJob(getApplicationContext(), false));
     }
   }
 }

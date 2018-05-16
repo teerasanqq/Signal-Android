@@ -7,8 +7,10 @@ import android.net.Uri;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.WorkerThread;
 import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.annimon.stream.Stream;
 import com.google.i18n.phonenumbers.NumberParseException;
@@ -19,13 +21,18 @@ import org.thoughtcrime.securesms.contactshare.Contact.Email;
 import org.thoughtcrime.securesms.contactshare.Contact.Phone;
 import org.thoughtcrime.securesms.contactshare.Contact.PostalAddress;
 import org.thoughtcrime.securesms.database.Address;
+import org.thoughtcrime.securesms.mms.PartAuthority;
 import org.thoughtcrime.securesms.recipients.Recipient;
+import org.thoughtcrime.securesms.util.Util;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 public final class ContactUtil {
+
+  private static final String TAG = ContactUtil.class.getSimpleName();
 
   public static long getContactIdFromUri(@NonNull Uri uri) {
     try {
@@ -116,7 +123,10 @@ public final class ContactUtil {
     return Stream.of(contact.getPhoneNumbers()).map(phone -> Recipient.from(context, Address.fromExternal(context, phone.getNumber()), true)).toList();
   }
 
-  public static @NonNull Intent buildAddToContactsIntent(@NonNull Contact contact, @Nullable byte[] avatarBytes) {
+  @WorkerThread
+  public static @NonNull Intent buildAddToContactsIntent(@NonNull Context context, @NonNull ContactWithAvatar contactWithAvatar) {
+    Contact contact = contactWithAvatar.getContact();
+
     Intent intent = new Intent(Intent.ACTION_INSERT_OR_EDIT);
     intent.setType(ContactsContract.Contacts.CONTENT_ITEM_TYPE);
 
@@ -159,14 +169,19 @@ public final class ContactUtil {
       intent.putExtra(ContactsContract.Intents.Insert.POSTAL_TYPE, getSystemType(contact.getPostalAddresses().get(0).getType()));
     }
 
-    if (avatarBytes != null) {
-      ArrayList<ContentValues> valuesArray = new ArrayList<>(1);
-      ContentValues values = new ContentValues();
-      valuesArray.add(values);
+    if (contactWithAvatar.getAvatarAttachment() != null && contactWithAvatar.getAvatarAttachment().getDataUri() != null) {
+      try {
+        ContentValues values = new ContentValues();
+        values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE);
+        values.put(ContactsContract.CommonDataKinds.Photo.PHOTO, Util.readFully(PartAuthority.getAttachmentStream(context, contactWithAvatar.getAvatarAttachment().getDataUri())));
 
-      values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE);
-      values.put(ContactsContract.CommonDataKinds.Photo.PHOTO, avatarBytes);
-      intent.putParcelableArrayListExtra(ContactsContract.Intents.Insert.DATA, valuesArray);
+        ArrayList<ContentValues> valuesArray = new ArrayList<>(1);
+        valuesArray.add(values);
+
+        intent.putParcelableArrayListExtra(ContactsContract.Intents.Insert.DATA, valuesArray);
+      } catch (IOException e) {
+        Log.w(TAG, "Failed to read avatar into a byte array.", e);
+      }
     }
     return intent;
   }

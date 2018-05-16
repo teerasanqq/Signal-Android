@@ -8,9 +8,8 @@ import org.greenrobot.eventbus.EventBus;
 import org.thoughtcrime.securesms.ApplicationContext;
 import org.thoughtcrime.securesms.TextSecureExpiredException;
 import org.thoughtcrime.securesms.attachments.Attachment;
-import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.contactshare.ContactModelMapper;
-import org.thoughtcrime.securesms.contactshare.ContactReader;
+import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.crypto.MasterSecret;
 import org.thoughtcrime.securesms.crypto.ProfileKeyUtil;
 import org.thoughtcrime.securesms.database.Address;
@@ -26,7 +25,6 @@ import org.thoughtcrime.securesms.util.BitmapDecodingException;
 import org.thoughtcrime.securesms.util.BitmapUtil;
 import org.thoughtcrime.securesms.util.MediaUtil;
 import org.thoughtcrime.securesms.util.TextSecurePreferences;
-import org.thoughtcrime.securesms.util.Util;
 import org.whispersystems.jobqueue.JobParameters;
 import org.whispersystems.jobqueue.requirements.NetworkRequirement;
 import org.whispersystems.libsignal.util.guava.Optional;
@@ -171,38 +169,24 @@ public abstract class PushSendJob extends SendJob {
     return Optional.of(new SignalServiceDataMessage.Quote(quoteId, new SignalServiceAddress(quoteAuthor.serialize()), quoteBody, quoteAttachments));
   }
 
-  List<SharedContact> getSharedContactsFor(List<Attachment> attachments) {
-    List<SharedContact> contacts = new LinkedList<>();
+  List<SharedContact> getSharedContactsFor(OutgoingMediaMessage mediaMessage) {
+    List<SharedContact> sharedContacts = new LinkedList<>();
 
-    for (Attachment attachment : attachments) {
-      if (MediaUtil.SHARED_CONTACT.equals(attachment.getContentType()) && attachment.getDataUri() != null) {
-        try {
-          ContactReader         reader       = new ContactReader(PartAuthority.getAttachmentStream(context, attachment.getDataUri()));
-          Contact               contact      = reader.getContact();
-          InputStream           avatarStream = reader.getAvatar();
-          SharedContact.Builder builder      = ContactModelMapper.localToRemoteBuilder(contact);
+    for (ContactWithAvatar contactWithAvatar : mediaMessage.getContactsWithAvatars()) {
+      SharedContact.Builder builder = ContactModelMapper.localToRemoteBuilder(contactWithAvatar.getContact());
+      SharedContact.Avatar  avatar  = null;
 
-          if (avatarStream != null) {
-            byte[]                  avatarBytes      = Util.readFully(avatarStream);
-            SignalServiceAttachment avatarAttachment = SignalServiceAttachment.newStreamBuilder()
-                                                                              .withContentType(MediaUtil.IMAGE_JPEG)
-                                                                              .withLength(avatarBytes.length)
-                                                                              .withStream(new ByteArrayInputStream(avatarBytes))
-                                                                              .build();
-            SharedContact.Avatar    avatar           = SharedContact.Avatar.newBuilder().withProfileFlag(contact.getAvatarState().isProfile())
-                                                                                        .withAttachment(avatarAttachment)
-                                                                                        .build();
-            builder.setAvatar(avatar);
-          }
-
-          contacts.add(builder.build());
-        } catch (IOException e) {
-          Log.w(TAG, "Exception while reading contact stream. Can't send contact.", e);
-        }
+      if (contactWithAvatar.getAvatarAttachment() != null) {
+        avatar = SharedContact.Avatar.newBuilder().withAttachment(getAttachmentFor(contactWithAvatar.getAvatarAttachment()))
+                                                  .withProfileFlag(contactWithAvatar.getContact().getAvatarState().isProfile())
+                                                  .build();
       }
+
+      builder.setAvatar(avatar);
+      sharedContacts.add(builder.build());
     }
 
-    return contacts;
+    return sharedContacts;
   }
 
   protected abstract void onPushSend() throws Exception;

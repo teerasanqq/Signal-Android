@@ -80,8 +80,8 @@ public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEd
       Context context = itemView.getContext();
       Contact contact = contactWithAvatar.getContact();
 
-      if (contactWithAvatar.getAvatarUri() != null) {
-        glideRequests.load(contactWithAvatar.getAvatarUri())
+      if (contactWithAvatar.getAvatarAttachment() != null && contactWithAvatar.getAvatarAttachment().getDataUri() != null) {
+        glideRequests.load(contactWithAvatar.getAvatarAttachment().getDataUri())
                      .fallback(R.drawable.ic_contact_picture)
                      .circleCrop()
                      .diskCacheStrategy(DiskCacheStrategy.ALL)

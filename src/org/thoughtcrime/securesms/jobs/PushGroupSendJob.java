@@ -152,8 +152,8 @@ public class PushGroupSendJob extends PushSendJob implements InjectableType {
     MediaConstraints              mediaConstraints  = MediaConstraints.getPushMediaConstraints();
     List<Attachment>              scaledAttachments = scaleAndStripExifFromAttachments(mediaConstraints, message.getAttachments());
     List<SignalServiceAttachment> attachmentStreams = getAttachmentsFor(scaledAttachments);
-    List<SharedContact>           sharedContacts    = getSharedContactsFor(scaledAttachments);
     Optional<Quote>               quote             = getQuoteFor(message);
+    List<SharedContact>           sharedContacts    = getSharedContactsFor(message);
 
     List<SignalServiceAddress>    addresses;
 

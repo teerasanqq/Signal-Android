@@ -36,9 +36,9 @@ import java.io.InputStream;
 import javax.inject.Inject;
 
 public class AttachmentDownloadJob extends MasterSecretJob implements InjectableType {
-  private   static final long   serialVersionUID    = 2L;
-  protected static final int    MAX_ATTACHMENT_SIZE = 150 * 1024  * 1024;
-  private   static final String TAG                  = AttachmentDownloadJob.class.getSimpleName();
+  private static final long   serialVersionUID    = 2L;
+  private static final int    MAX_ATTACHMENT_SIZE = 150 * 1024  * 1024;
+  private static final String TAG                  = AttachmentDownloadJob.class.getSimpleName();
 
   @Inject transient SignalServiceMessageReceiver messageReceiver;
 
@@ -104,7 +104,7 @@ public class AttachmentDownloadJob extends MasterSecretJob implements Injectable
     return (exception instanceof PushNetworkException);
   }
 
-  void retrieveAttachment(long messageId,
+  private void retrieveAttachment(long messageId,
                                   final AttachmentId attachmentId,
                                   final Attachment attachment)
       throws IOException
@@ -131,11 +131,8 @@ public class AttachmentDownloadJob extends MasterSecretJob implements Injectable
     }
   }
 
-  private SignalServiceAttachmentPointer createAttachmentPointer(Attachment attachment) throws  InvalidPartException {
-    return createAttachmentPointer(attachment, Util.toIntExact(attachment.getSize()));
-  }
-
-  SignalServiceAttachmentPointer createAttachmentPointer(Attachment attachment, int size)
+  @VisibleForTesting
+  SignalServiceAttachmentPointer createAttachmentPointer(Attachment attachment)
       throws InvalidPartException
   {
     if (TextUtils.isEmpty(attachment.getLocation())) {
@@ -162,7 +159,7 @@ public class AttachmentDownloadJob extends MasterSecretJob implements Injectable
       }
 
       return new SignalServiceAttachmentPointer(id, null, key, relay,
-                                                Optional.of(size),
+                                                Optional.of(Util.toIntExact(attachment.getSize())),
                                                 Optional.absent(),
                                                 0, 0,
                                                 Optional.fromNullable(attachment.getDigest()),
@@ -174,7 +171,7 @@ public class AttachmentDownloadJob extends MasterSecretJob implements Injectable
     }
   }
 
-  File createTempFile() throws InvalidPartException {
+  private File createTempFile() throws InvalidPartException {
     try {
       File file = File.createTempFile("push-attachment", "tmp", context.getCacheDir());
       file.deleteOnExit();
@@ -185,7 +182,7 @@ public class AttachmentDownloadJob extends MasterSecretJob implements Injectable
     }
   }
 
-  void markFailed(long messageId, AttachmentId attachmentId) {
+  private void markFailed(long messageId, AttachmentId attachmentId) {
     try {
       AttachmentDatabase database = DatabaseFactory.getAttachmentDatabase(context);
       database.setTransferProgressFailed(attachmentId, messageId);
@@ -194,7 +191,7 @@ public class AttachmentDownloadJob extends MasterSecretJob implements Injectable
     }
   }
 
-  static class InvalidPartException extends Exception {
+  @VisibleForTesting static class InvalidPartException extends Exception {
     InvalidPartException(String s) {super(s);}
     InvalidPartException(Exception e) {super(e);}
   }

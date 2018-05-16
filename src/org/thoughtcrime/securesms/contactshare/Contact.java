@@ -9,6 +9,9 @@ import android.util.Log;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.json.JSONException;
+import org.thoughtcrime.securesms.attachments.Attachment;
+import org.thoughtcrime.securesms.attachments.AttachmentId;
 import org.thoughtcrime.securesms.util.JsonUtils;
 
 import java.io.IOException;
@@ -40,13 +43,17 @@ public class Contact implements Parcelable {
   @JsonProperty
   private final int                 avatarSize;
 
-  Contact(@JsonProperty("name")            @NonNull  Name                name,
-          @JsonProperty("organization")    @Nullable String              organization,
-          @JsonProperty("phoneNumbers")    @NonNull  List<Phone>         phoneNumbers,
-          @JsonProperty("emails")          @NonNull  List<Email>         emails,
-          @JsonProperty("postalAddresses") @NonNull  List<PostalAddress> postalAddresses,
-          @JsonProperty("avatarState")     @NonNull  AvatarState         avatarState,
-          @JsonProperty("avatarSize")                int                 avatarSize)
+  @JsonProperty
+  private final AttachmentId        attachmentId;
+
+  public Contact(@JsonProperty("name")            @NonNull  Name                name,
+                 @JsonProperty("organization")    @Nullable String              organization,
+                 @JsonProperty("phoneNumbers")    @NonNull  List<Phone>         phoneNumbers,
+                 @JsonProperty("emails")          @NonNull  List<Email>         emails,
+                 @JsonProperty("postalAddresses") @NonNull  List<PostalAddress> postalAddresses,
+                 @JsonProperty("avatarState")     @NonNull  AvatarState         avatarState,
+                 @JsonProperty("avatarSize")                int                 avatarSize,
+                 @JsonProperty("attachmentId")    @Nullable AttachmentId        attachmentId)
   {
     this.name            = name;
     this.organization    = organization;
@@ -55,6 +62,7 @@ public class Contact implements Parcelable {
     this.postalAddresses = Collections.unmodifiableList(postalAddresses);
     this.avatarState     = avatarState;
     this.avatarSize      = avatarSize;
+    this.attachmentId    = attachmentId;
   }
 
   private Contact(Parcel in) {
@@ -64,7 +72,8 @@ public class Contact implements Parcelable {
          in.createTypedArrayList(Email.CREATOR),
          in.createTypedArrayList(PostalAddress.CREATOR),
          AvatarState.valueOf(in.readString()),
-         in.readInt());
+         in.readInt(),
+         null);
   }
 
   public @NonNull Name getName() {
@@ -95,6 +104,10 @@ public class Contact implements Parcelable {
     return avatarSize;
   }
 
+  public @Nullable AttachmentId getAttachmentId() {
+    return attachmentId;
+  }
+
   public String serialize() {
     try {
       return JsonUtils.toJson(this);
@@ -104,13 +117,8 @@ public class Contact implements Parcelable {
     }
   }
 
-  public static Contact deserialize(@NonNull String serialized) {
-    try {
-      return JsonUtils.fromJson(serialized, Contact.class);
-    } catch (IOException e) {
-      Log.w(TAG, "Failed to deserialize from JSON.", e);
-      return null;
-    }
+  public static Contact deserialize(@NonNull String serialized) throws IOException {
+    return JsonUtils.fromJson(serialized, Contact.class);
   }
 
   @Override

@@ -18,7 +18,6 @@ import com.bumptech.glide.load.resource.gif.GifDrawable;
 
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.mms.AudioSlide;
-import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
 import org.thoughtcrime.securesms.mms.DocumentSlide;
 import org.thoughtcrime.securesms.mms.GifSlide;
@@ -50,9 +49,7 @@ public class MediaUtil {
 
   public static Slide getSlideForAttachment(Context context, Attachment attachment) {
     Slide slide = null;
-    if (isSharedContact(attachment.getContentType())) {
-      slide = new SharedContactSlide(context, attachment);
-    } else if (isGif(attachment.getContentType())) {
+    if (isGif(attachment.getContentType())) {
       slide = new GifSlide(context, attachment);
     } else if (isImageType(attachment.getContentType())) {
       slide = new ImageSlide(context, attachment);

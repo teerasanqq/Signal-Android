@@ -12,7 +12,6 @@ import org.thoughtcrime.securesms.events.ReminderUpdateEvent;
 import org.thoughtcrime.securesms.jobs.AttachmentDownloadJob;
 import org.thoughtcrime.securesms.jobs.AvatarDownloadJob;
 import org.thoughtcrime.securesms.jobs.CleanPreKeysJob;
-import org.thoughtcrime.securesms.jobs.ContactAttachmentDownloadJob;
 import org.thoughtcrime.securesms.jobs.CreateSignedPreKeyJob;
 import org.thoughtcrime.securesms.jobs.GcmRefreshJob;
 import org.thoughtcrime.securesms.jobs.MultiDeviceBlockedUpdateJob;
@@ -57,7 +56,6 @@ import dagger.Provides;
                                      PushTextSendJob.class,
                                      PushMediaSendJob.class,
                                      AttachmentDownloadJob.class,
-                                     ContactAttachmentDownloadJob.class,
                                      RefreshPreKeysJob.class,
                                      MessageRetrievalService.class,
                                      PushNotificationReceiveJob.class,

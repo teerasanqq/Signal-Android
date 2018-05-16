@@ -111,9 +111,9 @@ public class PushMediaSendJob extends PushSendJob implements InjectableType {
       MediaConstraints                         mediaConstraints  = MediaConstraints.getPushMediaConstraints();
       List<Attachment>                         scaledAttachments = scaleAndStripExifFromAttachments(mediaConstraints, message.getAttachments());
       List<SignalServiceAttachment>            attachmentStreams = getAttachmentsFor(scaledAttachments);
-      List<SharedContact>                      sharedContacts    = getSharedContactsFor(scaledAttachments);
       Optional<byte[]>                         profileKey        = getProfileKey(message.getRecipient());
       Optional<SignalServiceDataMessage.Quote> quote             = getQuoteFor(message);
+      List<SharedContact>                      sharedContacts    = getSharedContactsFor(message);
       SignalServiceDataMessage                 mediaMessage      = SignalServiceDataMessage.newBuilder()
                                                                                            .withBody(message.getBody())
                                                                                            .withAttachments(attachmentStreams)

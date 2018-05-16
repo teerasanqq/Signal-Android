@@ -98,7 +98,6 @@ import org.thoughtcrime.securesms.contacts.ContactAccessor;
 import org.thoughtcrime.securesms.contacts.ContactAccessor.ContactData;
 import org.thoughtcrime.securesms.contactshare.ContactShareEditActivity;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.RetrieveContactTask;
 import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.crypto.IdentityKeyParcelable;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
@@ -134,7 +133,6 @@ import org.thoughtcrime.securesms.mms.OutgoingMediaMessage;
 import org.thoughtcrime.securesms.mms.OutgoingSecureMediaMessage;
 import org.thoughtcrime.securesms.mms.QuoteId;
 import org.thoughtcrime.securesms.mms.QuoteModel;
-import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.mms.Slide;
 import org.thoughtcrime.securesms.mms.SlideDeck;
 import org.thoughtcrime.securesms.notifications.MarkReadReceiver;
@@ -784,7 +782,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
                                            .setType(GroupContext.Type.QUIT)
                                            .build();
 
-        OutgoingGroupMediaMessage outgoingMessage = new OutgoingGroupMediaMessage(getRecipient(), context, null, System.currentTimeMillis(), 0, null);
+        OutgoingGroupMediaMessage outgoingMessage = new OutgoingGroupMediaMessage(getRecipient(), context, null, System.currentTimeMillis(), 0, null, Collections.emptyList());
         MessageSender.send(self, outgoingMessage, threadId, false, null);
         DatabaseFactory.getGroupDatabase(self).remove(groupId, Address.fromSerialized(TextSecurePreferences.getLocalNumber(self)));
         initializeEnabledCheck();
@@ -1414,17 +1412,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     long       expiresIn      = recipient.getExpireMessages() * 1000L;
     boolean    initiating     = threadId == -1;
 
-    attachmentManager.setSharedContact(contactsWithAvatars.get(0)).addListener(new AssertedSuccessListener<Boolean>() {
-      @Override
-      public void onSuccess(Boolean success) {
-        if (success != null && success) {
-          sendMediaMessage(isSmsForced(), "", attachmentManager.buildSlideDeck(), expiresIn, subscriptionId, initiating);
-        } else {
-          Toast.makeText(ConversationActivity.this, R.string.ConversationActivity_failed_to_save_contact_attachment, Toast.LENGTH_SHORT).show();
-          Log.w(TAG, "Failed to save contact attachment.");
-        }
-      }
-    });
+    sendMediaMessage(isSmsForced(), "", attachmentManager.buildSlideDeck(), contactsWithAvatars, expiresIn, subscriptionId, initiating);
   }
 
   private void selectContactInfo(ContactData contactData) {
@@ -1709,15 +1697,16 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
       throws InvalidMessageException
   {
     Log.w(TAG, "Sending media message...");
-    sendMediaMessage(forceSms, getMessage(), attachmentManager.buildSlideDeck(), expiresIn, subscriptionId, initiating);
+    sendMediaMessage(forceSms, getMessage(), attachmentManager.buildSlideDeck(), Collections.emptyList(), expiresIn, subscriptionId, initiating);
   }
 
-  private ListenableFuture<Void> sendMediaMessage(final    boolean   forceSms,
-                                                           String    body,
-                                                           SlideDeck slideDeck,
-                                                  final    long      expiresIn,
-                                                  final    int       subscriptionId,
-                                                  final    boolean   initiating)
+  private ListenableFuture<Void> sendMediaMessage(final    boolean                 forceSms,
+                                                           String                  body,
+                                                           SlideDeck               slideDeck,
+                                                           List<ContactWithAvatar> contactsWithAvatars,
+                                                  final    long                    expiresIn,
+                                                  final    int                     subscriptionId,
+                                                  final    boolean                 initiating)
   {
     OutgoingMediaMessage outgoingMessageCandidate = new OutgoingMediaMessage(recipient,
                                                                              slideDeck,
@@ -1726,7 +1715,8 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
                                                                              subscriptionId,
                                                                              expiresIn,
                                                                              distributionType,
-                                                                             inputPanel.getQuote().orNull());
+                                                                             inputPanel.getQuote().orNull(),
+                                                                             contactsWithAvatars);
 
     final SettableFuture<Void> future  = new SettableFuture<>();
     final Context              context = getApplicationContext();
@@ -1911,7 +1901,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
         SlideDeck  slideDeck      = new SlideDeck();
         slideDeck.addSlide(audioSlide);
 
-        sendMediaMessage(forceSms, "", slideDeck, expiresIn, subscriptionId, initiating).addListener(new AssertedSuccessListener<Void>() {
+        sendMediaMessage(forceSms, "", slideDeck, Collections.emptyList(), expiresIn, subscriptionId, initiating).addListener(new AssertedSuccessListener<Void>() {
           @Override
           public void onSuccess(Void nothing) {
             new AsyncTask<Void, Void, Void>() {
@@ -2112,19 +2102,21 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
       author = messageRecord.getIndividualRecipient();
     }
 
-    if (messageRecord.isMms() && ((MmsMessageRecord) messageRecord).getSlideDeck().getSharedContactSlide() != null) {
-      SharedContactSlide slide = ((MmsMessageRecord) messageRecord).getSlideDeck().getSharedContactSlide();
+    if (messageRecord.isMms() && !((MmsMessageRecord) messageRecord).getContactsWithAvatars().isEmpty()) {
+      ContactWithAvatar contactWithAvatar = ((MmsMessageRecord) messageRecord).getContactsWithAvatars().get(0);
+      String            displayName       = ContactUtil.getDisplayName(contactWithAvatar.getContact());
+      String            body              = getString(R.string.MessageNotifier_contact_message, displayName);
+      SlideDeck         slideDeck         = new SlideDeck();
 
-      new RetrieveContactTask(this, slide, contact -> {
-        String displayName = ContactUtil.getDisplayName(contact);
-        String body        = getString(R.string.MessageNotifier_contact_message, displayName);
+      if (contactWithAvatar.getAvatarAttachment() != null) {
+        slideDeck.addSlide(MediaUtil.getSlideForAttachment(this, contactWithAvatar.getAvatarAttachment()));
+      }
 
-        inputPanel.setQuote(GlideApp.with(this),
-                            messageRecord.getDateSent(),
-                            author,
-                            body,
-                            new SlideDeck());
-      }).execute();
+      inputPanel.setQuote(GlideApp.with(this),
+                          messageRecord.getDateSent(),
+                          author,
+                          body,
+                          slideDeck);
     } else {
       inputPanel.setQuote(GlideApp.with(this),
                           messageRecord.getDateSent(),

@@ -2,6 +2,7 @@ package org.thoughtcrime.securesms.mms;
 
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.PointerAttachment;
+import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.util.GroupUtil;
 import org.whispersystems.libsignal.util.guava.Optional;
@@ -15,17 +16,18 @@ import java.util.List;
 
 public class IncomingMediaMessage {
 
-  private final Address             from;
-  private final Address             groupId;
-  private final String              body;
-  private final boolean             push;
-  private final long                sentTimeMillis;
-  private final int                 subscriptionId;
-  private final long                expiresIn;
-  private final boolean             expirationUpdate;
-  private final QuoteModel          quote;
+  private final Address       from;
+  private final Address       groupId;
+  private final String        body;
+  private final boolean       push;
+  private final long          sentTimeMillis;
+  private final int           subscriptionId;
+  private final long          expiresIn;
+  private final boolean       expirationUpdate;
+  private final QuoteModel    quote;
 
-  private final List<Attachment> attachments = new LinkedList<>();
+  private final List<Attachment>        attachments    = new LinkedList<>();
+  private final List<ContactWithAvatar> sharedContacts = new LinkedList<>();
 
   public IncomingMediaMessage(Address from,
                               Optional<Address> groupId,
@@ -57,8 +59,9 @@ public class IncomingMediaMessage {
                               Optional<String> relay,
                               Optional<String> body,
                               Optional<SignalServiceGroup> group,
-                              Optional<List<Attachment>> attachments,
-                              Optional<QuoteModel> quote)
+                              Optional<List<SignalServiceAttachment>> attachments,
+                              Optional<QuoteModel> quote,
+                              Optional<List<ContactWithAvatar>> sharedContacts)
   {
     this.push             = true;
     this.from             = from;
@@ -72,7 +75,8 @@ public class IncomingMediaMessage {
     if (group.isPresent()) this.groupId = Address.fromSerialized(GroupUtil.getEncodedId(group.get().getGroupId(), false));
     else                   this.groupId = null;
 
-    this.attachments.addAll(attachments.or(Collections.emptyList()));
+    this.attachments.addAll(PointerAttachment.forPointers(attachments));
+    this.sharedContacts.addAll(sharedContacts.or(Collections.emptyList()));
   }
 
   public int getSubscriptionId() {
@@ -117,5 +121,9 @@ public class IncomingMediaMessage {
 
   public QuoteModel getQuote() {
     return quote;
+  }
+
+  public List<ContactWithAvatar> getContactsWithAvatars() {
+    return sharedContacts;
   }
 }

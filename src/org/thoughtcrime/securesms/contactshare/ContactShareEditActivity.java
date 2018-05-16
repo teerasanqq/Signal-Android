@@ -78,9 +78,7 @@ public class ContactShareEditActivity extends PassphraseRequiredActionBarActivit
 
     ContactRepository contactRepository = new ContactRepository(this,
                                                                 AsyncTask.THREAD_POOL_EXECUTOR,
-                                                                dynamicLanguage.getCurrentLocale(),
-                                                                DatabaseFactory.getContactsDatabase(this),
-                                                                DatabaseFactory.getThreadDatabase(this));
+                                                                DatabaseFactory.getContactsDatabase(this));
 
     viewModel = ViewModelProviders.of(this, new Factory(contactIds, contactRepository)).get(ContactShareEditViewModel.class);
     viewModel.getContactsWithAvatars().observe(this, contacts -> {

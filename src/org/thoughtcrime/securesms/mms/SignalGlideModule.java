@@ -25,8 +25,6 @@ import org.thoughtcrime.securesms.crypto.AttachmentSecret;
 import org.thoughtcrime.securesms.crypto.AttachmentSecretProvider;
 import org.thoughtcrime.securesms.giph.model.GiphyPaddedUrl;
 import org.thoughtcrime.securesms.glide.ContactPhotoLoader;
-import org.thoughtcrime.securesms.glide.KeyedInputStream;
-import org.thoughtcrime.securesms.glide.KeyedInputStreamLoader;
 import org.thoughtcrime.securesms.glide.cache.EncryptedBitmapCacheDecoder;
 import org.thoughtcrime.securesms.glide.cache.EncryptedCacheEncoder;
 import org.thoughtcrime.securesms.glide.cache.EncryptedGifCacheDecoder;
@@ -71,7 +69,6 @@ public class SignalGlideModule extends AppGlideModule {
     registry.append(DecryptableUri.class, InputStream.class, new DecryptableStreamUriLoader.Factory(context));
     registry.append(AttachmentModel.class, InputStream.class, new AttachmentStreamUriLoader.Factory());
     registry.append(GiphyPaddedUrl.class, InputStream.class, new GiphyPaddedUrlLoader.Factory());
-    registry.append(KeyedInputStream.class, InputStream.class, new KeyedInputStreamLoader.Factory());
     registry.replace(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory());
   }
 

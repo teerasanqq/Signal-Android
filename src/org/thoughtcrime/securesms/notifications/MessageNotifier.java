@@ -42,7 +42,6 @@ import org.thoughtcrime.securesms.ConversationActivity;
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
 import org.thoughtcrime.securesms.contactshare.Contact;
-import org.thoughtcrime.securesms.contactshare.ContactReader;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
 import org.thoughtcrime.securesms.database.MessagingDatabase.MarkedMessageInfo;
 import org.thoughtcrime.securesms.database.MmsSmsDatabase;
@@ -50,8 +49,6 @@ import org.thoughtcrime.securesms.database.ThreadDatabase;
 import org.thoughtcrime.securesms.database.model.MediaMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.MessageRecord;
 import org.thoughtcrime.securesms.database.model.MmsMessageRecord;
-import org.thoughtcrime.securesms.mms.PartAuthority;
-import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.mms.SlideDeck;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.service.KeyCachingService;
@@ -62,8 +59,6 @@ import org.thoughtcrime.securesms.util.TextSecurePreferences;
 import org.thoughtcrime.securesms.webrtc.CallNotificationBuilder;
 import org.whispersystems.signalservice.internal.util.Util;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -437,17 +432,14 @@ public class MessageNotifier {
 
       if (KeyCachingService.isLocked(context)) {
         body = SpanUtil.italic(context.getString(R.string.MessageNotifier_locked_message));
-      } else if (record.isMms() && ((MmsMessageRecord) record).getSlideDeck().getSharedContactSlide() != null) {
-        slideDeck = ((MmsMessageRecord) record).getSlideDeck();
-        Contact contact = getContact(context, slideDeck);
+      } else if (record.isMms() && !((MmsMessageRecord) record).getContactsWithAvatars().isEmpty()) {
+        Contact contact     = ((MmsMessageRecord) record).getContactsWithAvatars().get(0).getContact();
+        String  contactName = ContactUtil.getDisplayName(contact);
 
-        if (contact != null) {
-          String contactName = ContactUtil.getDisplayName(contact);
-          if (!TextUtils.isEmpty(contactName)) {
-            body = context.getString(R.string.MessageNotifier_contact_message, contactName);
-          } else {
-            body = SpanUtil.italic(context.getString(R.string.MessageNotifier_unknown_contact_message));
-          }
+        if (!TextUtils.isEmpty(contactName)) {
+          body = context.getString(R.string.MessageNotifier_contact_message, contactName);
+        } else {
+          body = SpanUtil.italic(context.getString(R.string.MessageNotifier_unknown_contact_message));
         }
       } else if (record.isMms() && TextUtils.isEmpty(body)) {
         body = SpanUtil.italic(context.getString(R.string.MessageNotifier_media_message));
@@ -466,21 +458,6 @@ public class MessageNotifier {
 
     reader.close();
     return notificationState;
-  }
-
-  private static @Nullable Contact getContact(@NonNull Context context, @NonNull SlideDeck slideDeck) {
-    SharedContactSlide slide = slideDeck.getSharedContactSlide();
-    if (slide == null || slide.getUri() == null) {
-      return null;
-    }
-
-    try (InputStream contactStream = PartAuthority.getAttachmentStream(context, slide.getUri())) {
-      ContactReader contactReader = new ContactReader(contactStream);
-      return contactReader.getContact();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return null;
   }
 
   private static void updateBadge(Context context, int count) {

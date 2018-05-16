@@ -35,21 +35,15 @@ public class ContactRepository {
 
   private final Context          context;
   private final Executor         executor;
-  private final Locale           locale;
   private final ContactsDatabase contactsDatabase;
-  private final ThreadDatabase   threadDatabase;
 
   public ContactRepository(@NonNull Context          context,
                            @NonNull Executor         executor,
-                           @NonNull Locale           locale,
-                           @NonNull ContactsDatabase contactsDatabase,
-                           @NonNull ThreadDatabase   threadDatabase)
+                           @NonNull ContactsDatabase contactsDatabase)
   {
     this.context          = context.getApplicationContext();
     this.executor         = executor;
-    this.locale           = locale;
     this.contactsDatabase = contactsDatabase;
-    this.threadDatabase   = threadDatabase;
   }
 
   void getContactsWithAvatars(@NonNull List<Long> contactIds, @NonNull ValueCallback<List<ContactWithAvatar>> callback) {
@@ -77,7 +71,7 @@ public class ContactRepository {
     AvatarInfo  avatarInfo   = getAvatarInfo(contactId, phoneNumbers);
     AvatarState avatarState  = avatarInfo == null ? AvatarState.NONE : (avatarInfo.isProfile ? AvatarState.PROFILE : AvatarState.SYSTEM);
 
-    return new ContactWithAvatar(new Contact(name, null, phoneNumbers, getEmails(contactId), getPostalAddresses(contactId), avatarState, 0),
+    return new ContactWithAvatar(new Contact(name, null, phoneNumbers, getEmails(contactId), getPostalAddresses(contactId), avatarState, 0, null),
                                  avatarInfo != null ? avatarInfo.uri : null);
   }
 

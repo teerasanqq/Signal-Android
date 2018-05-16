@@ -54,8 +54,8 @@ import android.widget.Toast;
 
 import org.thoughtcrime.securesms.ConversationAdapter.HeaderViewHolder;
 import org.thoughtcrime.securesms.ConversationAdapter.ItemClickListener;
-import org.thoughtcrime.securesms.contactshare.BuildAddToContactsIntentTask;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
+import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.contactshare.RefreshContactTask;
 import org.thoughtcrime.securesms.contactshare.RetrieveThreadIdTask;
 import org.thoughtcrime.securesms.contactshare.SharedContactDetailsActivity;
@@ -67,9 +67,9 @@ import org.thoughtcrime.securesms.database.loaders.ConversationLoader;
 import org.thoughtcrime.securesms.database.model.MediaMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.MessageRecord;
 import org.thoughtcrime.securesms.database.model.MmsMessageRecord;
+import org.thoughtcrime.securesms.jobs.DirectoryRefreshJob;
 import org.thoughtcrime.securesms.mms.GlideApp;
 import org.thoughtcrime.securesms.mms.OutgoingMediaMessage;
-import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.mms.Slide;
 import org.thoughtcrime.securesms.profiles.UnknownSenderView;
 import org.thoughtcrime.securesms.recipients.Recipient;
@@ -116,7 +116,6 @@ public class ConversationFragment extends Fragment
   private View                        composeDivider;
   private View                        scrollToBottomButton;
   private TextView                    scrollDateHeader;
-  private Contact                     pendingAddedContact;
 
   @Override
   public void onCreate(Bundle icicle) {
@@ -666,24 +665,27 @@ public class ConversationFragment extends Fragment
     }
 
     @Override
-    public void onSharedContactDetailsClicked(@NonNull SharedContactSlide sharedContactSlide, @NonNull View avatarTransitionView) {
+    public void onSharedContactDetailsClicked(@NonNull ContactWithAvatar contactWithAvatar, @NonNull View avatarTransitionView) {
       if (getContext() != null && getActivity() != null) {
         Bundle bundle = ActivityOptionsCompat.makeSceneTransitionAnimation(getActivity(), avatarTransitionView, "avatar").toBundle();
-        ActivityCompat.startActivity(getActivity(), SharedContactDetailsActivity.getIntent(getContext(), sharedContactSlide), bundle);
+        ActivityCompat.startActivity(getActivity(), SharedContactDetailsActivity.getIntent(getContext(), contactWithAvatar), bundle);
       }
     }
 
     @Override
-    public void onAddToContactsClicked(@NonNull SharedContactSlide sharedContactSlide, @NonNull Contact sharedContact) {
-      if (getContext() != null && sharedContactSlide.getUri() != null) {
-        pendingAddedContact = sharedContact;
-        new BuildAddToContactsIntentTask(getContext(), sharedContactSlide, intent -> {
-          if (intent != null && getContext() != null) {
-            startActivityForResult(intent, CODE_ADD_EDIT_CONTACT);
-          } else {
-            Log.w(TAG, "Failed to create an intent to add a contact.");
+    public void onAddToContactsClicked(@NonNull ContactWithAvatar contactWithAvatar) {
+      if (getContext() != null) {
+        new AsyncTask<Void, Void, Intent>() {
+          @Override
+          protected Intent doInBackground(Void... voids) {
+            return ContactUtil.buildAddToContactsIntent(getContext(), contactWithAvatar);
           }
-        }).execute();
+
+          @Override
+          protected void onPostExecute(Intent intent) {
+            startActivityForResult(intent, CODE_ADD_EDIT_CONTACT);
+          }
+        }.execute();
       }
     }
 
@@ -713,9 +715,10 @@ public class ConversationFragment extends Fragment
   public void onActivityResult(int requestCode, int resultCode, Intent data) {
     super.onActivityResult(requestCode, resultCode, data);
 
-    if (requestCode == CODE_ADD_EDIT_CONTACT && pendingAddedContact != null && getContext() != null) {
-      new RefreshContactTask(getContext(), pendingAddedContact).execute();
-      pendingAddedContact = null;
+    if (requestCode == CODE_ADD_EDIT_CONTACT && getContext() != null) {
+      ApplicationContext.getInstance(getContext().getApplicationContext())
+                        .getJobManager()
+                        .add(new DirectoryRefreshJob(getContext().getApplicationContext(), false));
     }
   }
 

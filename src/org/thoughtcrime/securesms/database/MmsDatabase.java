@@ -32,10 +32,16 @@ import com.google.android.mms.pdu_alt.PduHeaders;
 
 import net.sqlcipher.database.SQLiteDatabase;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.thoughtcrime.securesms.ApplicationContext;
 import org.thoughtcrime.securesms.attachments.Attachment;
+import org.thoughtcrime.securesms.attachments.AttachmentId;
 import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
 import org.thoughtcrime.securesms.attachments.MmsNotificationAttachment;
+import org.thoughtcrime.securesms.contactshare.Contact;
+import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.database.documents.IdentityKeyMismatch;
 import org.thoughtcrime.securesms.database.documents.IdentityKeyMismatchList;
 import org.thoughtcrime.securesms.database.documents.NetworkFailure;
@@ -65,6 +71,8 @@ import org.whispersystems.libsignal.util.guava.Optional;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -93,6 +101,8 @@ public class MmsDatabase extends MessagingDatabase {
           static final String QUOTE_BODY       = "quote_body";
           static final String QUOTE_ATTACHMENT = "quote_attachment";
 
+          static final String SHARED_CONTACTS  = "shared_contacts";
+
   public static final String CREATE_TABLE = "CREATE TABLE " + TABLE_NAME + " (" + ID + " INTEGER PRIMARY KEY, "                          +
     THREAD_ID + " INTEGER, " + DATE_SENT + " INTEGER, " + DATE_RECEIVED + " INTEGER, " + MESSAGE_BOX + " INTEGER, " +
     READ + " INTEGER DEFAULT 0, " + "m_id" + " TEXT, " + "sub" + " TEXT, "                +
@@ -110,7 +120,8 @@ public class MmsDatabase extends MessagingDatabase {
     SUBSCRIPTION_ID + " INTEGER DEFAULT -1, " + EXPIRES_IN + " INTEGER DEFAULT 0, " +
     EXPIRE_STARTED + " INTEGER DEFAULT 0, " + NOTIFIED + " INTEGER DEFAULT 0, " +
     READ_RECEIPT_COUNT + " INTEGER DEFAULT 0, " + QUOTE_ID + " INTEGER DEFAULT 0, " +
-    QUOTE_AUTHOR + " TEXT, " + QUOTE_BODY + " TEXT, " + QUOTE_ATTACHMENT + " INTEGER DEFAULT -1);";
+    QUOTE_AUTHOR + " TEXT, " + QUOTE_BODY + " TEXT, " + QUOTE_ATTACHMENT + " INTEGER DEFAULT -1, " +
+    SHARED_CONTACTS + " TEXT);";
 
   public static final String[] CREATE_INDEXS = {
     "CREATE INDEX IF NOT EXISTS mms_thread_id_index ON " + TABLE_NAME + " (" + THREAD_ID + ");",
@@ -130,7 +141,7 @@ public class MmsDatabase extends MessagingDatabase {
       MESSAGE_SIZE, STATUS, TRANSACTION_ID,
       BODY, PART_COUNT, ADDRESS, ADDRESS_DEVICE_ID,
       DELIVERY_RECEIPT_COUNT, READ_RECEIPT_COUNT, MISMATCHED_IDENTITIES, NETWORK_FAILURE, SUBSCRIPTION_ID,
-      EXPIRES_IN, EXPIRE_STARTED, NOTIFIED, QUOTE_ID, QUOTE_AUTHOR, QUOTE_BODY, QUOTE_ATTACHMENT,
+      EXPIRES_IN, EXPIRE_STARTED, NOTIFIED, QUOTE_ID, QUOTE_AUTHOR, QUOTE_BODY, QUOTE_ATTACHMENT, SHARED_CONTACTS,
       "json_group_array(json_object(" +
           "'" + AttachmentDatabase.ROW_ID + "', " + AttachmentDatabase.TABLE_NAME + "." + AttachmentDatabase.ROW_ID + ", " +
           "'" + AttachmentDatabase.UNIQUE_ID + "', " + AttachmentDatabase.TABLE_NAME + "." + AttachmentDatabase.UNIQUE_ID + ", " +
@@ -549,20 +560,21 @@ public class MmsDatabase extends MessagingDatabase {
       if (cursor != null && cursor.moveToNext()) {
         List<DatabaseAttachment> associatedAttachments = attachmentDatabase.getAttachmentsForMessage(messageId);
 
-        long             outboxType       = cursor.getLong(cursor.getColumnIndexOrThrow(MESSAGE_BOX));
-        String           body             = cursor.getString(cursor.getColumnIndexOrThrow(BODY));
-        long             timestamp        = cursor.getLong(cursor.getColumnIndexOrThrow(NORMALIZED_DATE_SENT));
-        int              subscriptionId   = cursor.getInt(cursor.getColumnIndexOrThrow(SUBSCRIPTION_ID));
-        long             expiresIn        = cursor.getLong(cursor.getColumnIndexOrThrow(EXPIRES_IN));
-        String           address          = cursor.getString(cursor.getColumnIndexOrThrow(ADDRESS));
-        long             threadId         = cursor.getLong(cursor.getColumnIndexOrThrow(THREAD_ID));
-        int              distributionType = DatabaseFactory.getThreadDatabase(context).getDistributionType(threadId);
-        List<Attachment> attachments      = Stream.of(associatedAttachments).filterNot(Attachment::isQuote).map(a -> (Attachment)a).toList();
+        long                    outboxType         = cursor.getLong(cursor.getColumnIndexOrThrow(MESSAGE_BOX));
+        String                  body               = cursor.getString(cursor.getColumnIndexOrThrow(BODY));
+        long                    timestamp          = cursor.getLong(cursor.getColumnIndexOrThrow(NORMALIZED_DATE_SENT));
+        int                     subscriptionId     = cursor.getInt(cursor.getColumnIndexOrThrow(SUBSCRIPTION_ID));
+        long                    expiresIn          = cursor.getLong(cursor.getColumnIndexOrThrow(EXPIRES_IN));
+        String                  address            = cursor.getString(cursor.getColumnIndexOrThrow(ADDRESS));
+        long                    threadId           = cursor.getLong(cursor.getColumnIndexOrThrow(THREAD_ID));
+        int                     distributionType   = DatabaseFactory.getThreadDatabase(context).getDistributionType(threadId);
+        List<Attachment>        attachments        = Stream.of(associatedAttachments).filterNot(Attachment::isQuote).map(a -> (Attachment)a).toList();
 
-        long             quoteId          = cursor.getLong(cursor.getColumnIndexOrThrow(QUOTE_ID));
-        String           quoteAuthor      = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_AUTHOR));
-        String           quoteText        = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_BODY));
-        List<Attachment> quoteAttachments = Stream.of(associatedAttachments).filter(Attachment::isQuote).map(a -> (Attachment)a).toList();
+        long                    quoteId            = cursor.getLong(cursor.getColumnIndexOrThrow(QUOTE_ID));
+        String                  quoteAuthor        = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_AUTHOR));
+        String                  quoteText          = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_BODY));
+        List<Attachment>        quoteAttachments   = Stream.of(associatedAttachments).filter(Attachment::isQuote).map(a -> (Attachment)a).toList();
+        List<ContactWithAvatar> sharedContacts     = getAndRemoveSharedContacts(cursor, associatedAttachments);
 
         Recipient  recipient = Recipient.from(context, Address.fromSerialized(address), false);
         QuoteModel quote     = null;
@@ -572,12 +584,12 @@ public class MmsDatabase extends MessagingDatabase {
         }
 
         if (body != null && (Types.isGroupQuit(outboxType) || Types.isGroupUpdate(outboxType))) {
-          return new OutgoingGroupMediaMessage(recipient, body, attachments, timestamp, 0, quote);
+          return new OutgoingGroupMediaMessage(recipient, body, attachments, timestamp, 0, quote, sharedContacts);
         } else if (Types.isExpirationTimerUpdate(outboxType)) {
           return new OutgoingExpirationUpdateMessage(recipient, timestamp, expiresIn);
         }
 
-        OutgoingMediaMessage message = new OutgoingMediaMessage(recipient, body, attachments, timestamp, subscriptionId, expiresIn, distributionType, quote);
+        OutgoingMediaMessage message = new OutgoingMediaMessage(recipient, body, attachments, timestamp, subscriptionId, expiresIn, distributionType, quote, sharedContacts);
 
         if (Types.isSecureType(outboxType)) {
           return new OutgoingSecureMediaMessage(message);
@@ -593,6 +605,44 @@ public class MmsDatabase extends MessagingDatabase {
       if (cursor != null)
         cursor.close();
     }
+  }
+
+  private List<ContactWithAvatar> getAndRemoveSharedContacts(@NonNull Cursor cursor, @NonNull List<DatabaseAttachment> attachments) {
+    String serializedContacts = cursor.getString(cursor.getColumnIndexOrThrow(SHARED_CONTACTS));
+
+    if (TextUtils.isEmpty(serializedContacts)) {
+      return Collections.emptyList();
+    }
+
+    Map<AttachmentId, DatabaseAttachment> attachmentIdMap = new HashMap<>();
+    for (DatabaseAttachment attachment : attachments) {
+      attachmentIdMap.put(attachment.getAttachmentId(), attachment);
+    }
+
+    try {
+      List<ContactWithAvatar> contactsWithAvatars = new LinkedList<>();
+      JSONArray               jsonContacts        = new JSONArray(serializedContacts);
+
+      for (int i = 0; i < jsonContacts.length(); i++) {
+        Contact contact = Contact.deserialize(jsonContacts.getJSONObject(i).toString());
+        if (contact.getAttachmentId() != null) {
+          DatabaseAttachment attachment = attachmentIdMap.get(contact.getAttachmentId());
+          contactsWithAvatars.add(new ContactWithAvatar(contact, attachment));
+
+          if (attachment != null) {
+            attachments.remove(attachment);
+          }
+        } else {
+          contactsWithAvatars.add(new ContactWithAvatar(contact, (Attachment) null));
+        }
+      }
+
+      return contactsWithAvatars;
+    } catch (JSONException | IOException e) {
+      Log.w(TAG, "Failed to parse shared contacts.", e);
+    }
+
+    return Collections.emptyList();
   }
 
   public long copyMessageInbox(long messageId) throws MmsException {
@@ -633,6 +683,7 @@ public class MmsDatabase extends MessagingDatabase {
       return insertMediaMessage(request.getBody(),
                                 attachments,
                                 new LinkedList<>(),
+                                request.getContactsWithAvatars(),
                                 contentValues,
                                 null);
     } catch (NoSuchMessageException e) {
@@ -690,7 +741,7 @@ public class MmsDatabase extends MessagingDatabase {
       return Optional.absent();
     }
 
-    long messageId = insertMediaMessage(retrieved.getBody(), retrieved.getAttachments(), quoteAttachments, contentValues, null);
+    long messageId = insertMediaMessage(retrieved.getBody(), retrieved.getAttachments(), quoteAttachments, retrieved.getContactsWithAvatars(), contentValues, null);
 
     if (!Types.isExpirationTimerUpdate(mailbox)) {
       DatabaseFactory.getThreadDatabase(context).incrementUnread(threadId, 1);
@@ -828,7 +879,7 @@ public class MmsDatabase extends MessagingDatabase {
       quoteAttachments.addAll(message.getOutgoingQuote().getAttachments());
     }
 
-    long messageId = insertMediaMessage(message.getBody(), message.getAttachments(), quoteAttachments, contentValues, insertListener);
+    long messageId = insertMediaMessage(message.getBody(), message.getAttachments(), quoteAttachments, message.getContactsWithAvatars(), contentValues, insertListener);
 
     if (message.getRecipient().getAddress().isGroup()) {
       List<Recipient>      members         = DatabaseFactory.getGroupDatabase(context).getGroupMembers(message.getRecipient().getAddress().toGroupString(), false);
@@ -851,6 +902,7 @@ public class MmsDatabase extends MessagingDatabase {
   private long insertMediaMessage(@Nullable String body,
                                   @NonNull List<Attachment> attachments,
                                   @NonNull List<Attachment> quoteAttachments,
+                                  @NonNull List<ContactWithAvatar> contactsWithAvatars,
                                   @NonNull ContentValues contentValues,
                                   @Nullable SmsDatabase.InsertListener insertListener)
       throws MmsException
@@ -858,14 +910,19 @@ public class MmsDatabase extends MessagingDatabase {
     SQLiteDatabase     db            = databaseHelper.getWritableDatabase();
     AttachmentDatabase partsDatabase = DatabaseFactory.getAttachmentDatabase(context);
 
+    List<Attachment> allAttachments = new LinkedList<>();
+    allAttachments.addAll(attachments);
+    allAttachments.addAll(Stream.of(contactsWithAvatars).map(ContactWithAvatar::getAvatarAttachment).filter(a -> a != null).toList());
+
     contentValues.put(BODY, body);
-    contentValues.put(PART_COUNT, attachments.size());
+    contentValues.put(PART_COUNT, allAttachments.size());
 
     db.beginTransaction();
     try {
       long messageId = db.insert(TABLE_NAME, null, contentValues);
 
-      partsDatabase.insertAttachmentsForMessage(messageId, attachments, quoteAttachments);
+      Map<Attachment, AttachmentId> insertedAttachments = partsDatabase.insertAttachmentsForMessage(messageId, allAttachments, quoteAttachments);
+      updateMessageSharedContacts(messageId, insertedAttachments, contactsWithAvatars);
 
       db.setTransactionSuccessful();
       return messageId;
@@ -900,6 +957,44 @@ public class MmsDatabase extends MessagingDatabase {
     Set<Long> singleThreadSet = new HashSet<>();
     singleThreadSet.add(threadId);
     deleteThreads(singleThreadSet);
+  }
+
+  private void updateMessageSharedContacts(long mmsId, @NonNull Map<Attachment, AttachmentId> insertedAttachments, @NonNull List<ContactWithAvatar> contactsWithAvatars) {
+    if (contactsWithAvatars.isEmpty()) return;
+
+    JSONArray sharedContactJson = new JSONArray();
+
+    for (ContactWithAvatar contactWithAvatar : contactsWithAvatars) {
+      try {
+        AttachmentId attachmentId = null;
+        if (contactWithAvatar.getAvatarAttachment() != null) {
+          attachmentId = insertedAttachments.get(contactWithAvatar.getAvatarAttachment());
+        }
+
+        Contact populatedContact = new Contact(contactWithAvatar.getContact().getName(),
+                                               contactWithAvatar.getContact().getOrganization(),
+                                               contactWithAvatar.getContact().getPhoneNumbers(),
+                                               contactWithAvatar.getContact().getEmails(),
+                                               contactWithAvatar.getContact().getPostalAddresses(),
+                                               contactWithAvatar.getContact().getAvatarState(),
+                                               contactWithAvatar.getContact().getAvatarSize(),
+                                               attachmentId);
+
+        sharedContactJson.put(new JSONObject(populatedContact.serialize()));
+      } catch (JSONException e) {
+        Log.w(TAG, "Failed to serialize shared contact. Skipping it.", e);
+      }
+    }
+
+    ContentValues contentValues = new ContentValues();
+    contentValues.put(SHARED_CONTACTS, sharedContactJson.toString());
+
+    SQLiteDatabase database = databaseHelper.getReadableDatabase();
+    int rows = database.update(TABLE_NAME, contentValues, ID + " = ?", new String[] { String.valueOf(mmsId) });
+
+    if (rows <= 0) {
+      Log.w(TAG, "Failed to update message with shared contact data.");
+    }
   }
 
   private boolean isDuplicate(IncomingMediaMessage message, long threadId) {
@@ -1071,7 +1166,8 @@ public class MmsDatabase extends MessagingDatabase {
                                                      message.getOutgoingQuote().getAuthor(),
                                                      message.getOutgoingQuote().getText(),
                                                      new SlideDeck(context, message.getOutgoingQuote().getAttachments())) :
-                                           null);
+                                           null,
+                                       message.getContactsWithAvatars());
     }
   }
 
@@ -1167,14 +1263,16 @@ public class MmsDatabase extends MessagingDatabase {
       Recipient                 recipient       = getRecipientFor(address);
       List<IdentityKeyMismatch> mismatches      = getMismatchedIdentities(mismatchDocument);
       List<NetworkFailure>      networkFailures = getFailures(networkDocument);
-      SlideDeck                 slideDeck       = getSlideDeck(cursor);
+      List<DatabaseAttachment>  attachments     = DatabaseFactory.getAttachmentDatabase(context).getAttachment(cursor);
+      List<ContactWithAvatar>   sharedContacts  = getAndRemoveSharedContacts(cursor, attachments);
+      SlideDeck                 slideDeck       = getSlideDeck(attachments);
       Quote                     quote           = getQuote(cursor);
 
       return new MediaMmsMessageRecord(context, id, recipient, recipient,
                                        addressDeviceId, dateSent, dateReceived, deliveryReceiptCount,
                                        threadId, body, slideDeck, partCount, box, mismatches,
                                        networkFailures, subscriptionId, expiresIn, expireStarted,
-                                       readReceiptCount, quote);
+                                       readReceiptCount, quote, sharedContacts);
     }
 
     private Recipient getRecipientFor(String serialized) {
@@ -1213,9 +1311,8 @@ public class MmsDatabase extends MessagingDatabase {
       return new LinkedList<>();
     }
 
-    private SlideDeck getSlideDeck(@NonNull Cursor cursor) {
-      List<DatabaseAttachment>   attachment         = DatabaseFactory.getAttachmentDatabase(context).getAttachment(cursor);
-      List<? extends Attachment> messageAttachmnets = Stream.of(attachment).filterNot(Attachment::isQuote).toList();
+    private SlideDeck getSlideDeck(@NonNull List<DatabaseAttachment> attachments) {
+      List<? extends Attachment> messageAttachmnets = Stream.of(attachments).filterNot(Attachment::isQuote).toList();
       return new SlideDeck(context, messageAttachmnets);
     }
 

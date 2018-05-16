@@ -1,6 +1,7 @@
 package org.thoughtcrime.securesms.components;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -16,18 +17,15 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.SharedContactInjector;
-import org.thoughtcrime.securesms.contactshare.SharedContactInjector.ResolvedContact;
+import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.database.RecipientDatabase;
-import org.thoughtcrime.securesms.glide.KeyedInputStream;
+import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
 import org.thoughtcrime.securesms.mms.GlideRequests;
-import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.recipients.RecipientModifiedListener;
 import org.thoughtcrime.securesms.util.Util;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,8 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class SharedContactView extends LinearLayout implements SharedContactInjector.Target,
-                                                               RecipientModifiedListener
+public class SharedContactView extends LinearLayout implements RecipientModifiedListener
 {
 
   private ImageView avatarView;
@@ -44,13 +41,10 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
   private TextView  numberView;
   private TextView  actionButtonView;
 
-  private SharedContactSlide sharedContactSlide;
-  private Contact            contact;
-  private Locale             locale;
-  private GlideRequests      glideRequests;
-  private EventListener      eventListener;
-
-  private String imageKey;
+  private ContactWithAvatar contactWithAvatar;
+  private Locale            locale;
+  private GlideRequests     glideRequests;
+  private EventListener     eventListener;
 
   private final Map<String, Recipient> activeRecipients = new HashMap<>();
 
@@ -84,15 +78,17 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     actionButtonView = findViewById(R.id.contact_action_button);
   }
 
-  public void setContact(@NonNull SharedContactSlide sharedContactSlide, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-    this.sharedContactSlide = sharedContactSlide;
-    this.glideRequests      = glideRequests;
-    this.locale             = locale;
+  public void setContact(@NonNull ContactWithAvatar contactWithAvatar, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
+    this.glideRequests     = glideRequests;
+    this.locale            = locale;
+    this.contactWithAvatar = contactWithAvatar;
 
     Stream.of(activeRecipients.values()).forEach(recipient ->  recipient.removeListener(this));
     this.activeRecipients.clear();
 
-    SharedContactInjector.load(getContext(), sharedContactSlide, this);
+    presentContact(contactWithAvatar.getContact());
+    presentAvatar(contactWithAvatar.getAvatarAttachment() != null ? contactWithAvatar.getAvatarAttachment().getDataUri() : null);
+    presentActionButtons(ContactUtil.getRecipients(getContext(), contactWithAvatar.getContact()));
   }
 
   public void setEventListener(@NonNull EventListener eventListener) {
@@ -101,19 +97,6 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
 
   public @NonNull View getAvatarView() {
     return avatarView;
-  }
-
-  @Override
-  public void setResolvedContact(@Nullable ResolvedContact resolvedContact) {
-    this.contact = resolvedContact != null ? resolvedContact.getContact() : null;
-
-    if (resolvedContact != null) {
-      presentContact(resolvedContact.getContact());
-      presentAvatar(resolvedContact.getAvatarStream());
-      presentActionButtons(resolvedContact.getRecipients());
-    } else {
-      clearView();
-    }
   }
 
   @Override
@@ -131,16 +114,15 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     }
   }
 
-  private void presentAvatar(@Nullable KeyedInputStream inputStream) {
-    if (inputStream != null && !Util.equals(inputStream.getKey(), imageKey)) {
-      imageKey = inputStream.getKey();
-      glideRequests.load(inputStream)
+  private void presentAvatar(@Nullable Uri uri) {
+    if (uri != null) {
+      glideRequests.load(new DecryptableUri(uri))
                    .fallback(R.drawable.ic_contact_picture)
                    .circleCrop()
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                    .dontAnimate()
                    .into(avatarView);
-    } else if (inputStream == null) {
+    } else {
       glideRequests.load(R.drawable.ic_contact_picture)
                    .circleCrop()
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -183,25 +165,15 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     } else {
       actionButtonView.setText(R.string.SharedContactView_add_to_contacts);
       actionButtonView.setOnClickListener(v -> {
-        if (eventListener != null && contact != null) {
-          eventListener.onAddToContactsClicked(sharedContactSlide, contact);
+        if (eventListener != null && contactWithAvatar != null) {
+          eventListener.onAddToContactsClicked(contactWithAvatar);
         }
       });
     }
   }
 
-  private void clearView() {
-    nameView.setText("");
-    numberView.setText("");
-
-    glideRequests.load(R.drawable.ic_contact_picture)
-        .circleCrop()
-        .diskCacheStrategy(DiskCacheStrategy.ALL)
-        .into(avatarView);
-  }
-
   public interface EventListener {
-    void onAddToContactsClicked(@NonNull SharedContactSlide sharedContactSlide, @NonNull Contact contact);
+    void onAddToContactsClicked(@NonNull ContactWithAvatar contactWithAvatar);
     void onInviteClicked(@NonNull List<Recipient> choices);
     void onMessageClicked(@NonNull List<Recipient> choices);
   }
