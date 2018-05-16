@@ -5,11 +5,9 @@ import android.support.annotation.Nullable;
 
 import org.thoughtcrime.securesms.glide.KeyedInputStream;
 
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
 
 public class ContactReader {
 
@@ -44,10 +42,10 @@ public class ContactReader {
       throw new IOException("Failed to read all of the contact bytes.");
     }
 
-    try {
-      contact = (Contact) new ObjectInputStream(new ByteArrayInputStream(contactBytes)).readObject();
-    } catch (ClassNotFoundException e) {
-      throw new IOException("Failed to parse contact.", e);
+    contact = Contact.deserialize(new String(contactBytes));
+
+    if (contact == null) {
+      throw new IOException("Failed to parse the contact.");
     }
   }
 

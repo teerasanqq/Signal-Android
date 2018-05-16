@@ -1,8 +1,6 @@
 package org.thoughtcrime.securesms.jobs;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -13,10 +11,6 @@ import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.contactshare.model.Contact;
 import org.thoughtcrime.securesms.contactshare.model.ContactModelMapper;
 import org.thoughtcrime.securesms.contactshare.model.ContactReader;
-import org.thoughtcrime.securesms.contactshare.model.ContactStream;
-import org.thoughtcrime.securesms.contactshare.model.Email;
-import org.thoughtcrime.securesms.contactshare.model.Phone;
-import org.thoughtcrime.securesms.contactshare.model.PostalAddress;
 import org.thoughtcrime.securesms.crypto.MasterSecret;
 import org.thoughtcrime.securesms.crypto.ProfileKeyUtil;
 import org.thoughtcrime.securesms.database.Address;
@@ -26,7 +20,6 @@ import org.thoughtcrime.securesms.jobs.requirements.MasterSecretRequirement;
 import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader;
 import org.thoughtcrime.securesms.mms.OutgoingMediaMessage;
 import org.thoughtcrime.securesms.mms.PartAuthority;
-import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.notifications.MessageNotifier;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.util.BitmapDecodingException;
@@ -45,7 +38,6 @@ import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 

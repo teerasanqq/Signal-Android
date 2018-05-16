@@ -46,6 +46,7 @@ public class SharedContactInjector {
 
           for (Recipient recipient : recipients) {
             recipient.resolve();
+            // TODO(greyson): Don't do this -- maybe do it indirectly through the DB?
             Recipient.applyCached(recipient.getAddress(), cached -> {
               cached.setIsSystemContact(ContactAccessor.getInstance().isSystemContact(context, recipient.getAddress().serialize()));
             });

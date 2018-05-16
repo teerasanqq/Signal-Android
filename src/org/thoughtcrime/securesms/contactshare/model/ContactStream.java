@@ -23,12 +23,7 @@ public final class ContactStream extends InputStream {
   private final InputStream inputStream;
 
   public ContactStream(@NonNull Contact contact, @Nullable InputStream attachmentStream) throws IOException {
-    ByteArrayOutputStream contactByteStream = new ByteArrayOutputStream();
-    ObjectOutputStream    contactWriter     = new ObjectOutputStream(contactByteStream);
-    contactWriter.writeObject(contact);
-    contactWriter.close();
-
-    byte[]      contactBytes        = contactByteStream.toByteArray();
+    byte[]      contactBytes        = contact.serialize().getBytes();
     byte[]      contactHeader       = Conversions.intToByteArray(contactBytes.length);
     byte[]      version             = Conversions.intToByteArray(VERSION);
     InputStream contactStream       = new ByteArrayInputStream(contactBytes);

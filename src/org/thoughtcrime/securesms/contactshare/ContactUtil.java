@@ -4,14 +4,11 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
 import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
-import android.util.Log;
 
 import com.annimon.stream.Stream;
 import com.google.i18n.phonenumbers.NumberParseException;
@@ -19,17 +16,12 @@ import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.Phonenumber.PhoneNumber;
 
 import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.ContactStream;
-import org.thoughtcrime.securesms.contactshare.model.Email;
-import org.thoughtcrime.securesms.contactshare.model.Phone;
-import org.thoughtcrime.securesms.contactshare.model.PostalAddress;
+import org.thoughtcrime.securesms.contactshare.model.Contact.Email;
+import org.thoughtcrime.securesms.contactshare.model.Contact.Phone;
+import org.thoughtcrime.securesms.contactshare.model.Contact.PostalAddress;
 import org.thoughtcrime.securesms.database.Address;
-import org.thoughtcrime.securesms.mms.PartAuthority;
 import org.thoughtcrime.securesms.recipients.Recipient;
-import org.thoughtcrime.securesms.util.Util;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;

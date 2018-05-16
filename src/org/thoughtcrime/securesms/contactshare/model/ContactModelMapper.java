@@ -8,9 +8,9 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-public class ContactModelMapper {
+import static org.thoughtcrime.securesms.contactshare.model.Contact.*;
 
-  private static final String TAG = ContactModelMapper.class.getSimpleName();
+public class ContactModelMapper {
 
   public static SharedContact.Builder localToRemoteBuilder(@NonNull Contact contact) {
     List<SharedContact.Phone>         phoneNumbers    = new ArrayList<>(contact.getPhoneNumbers().size());
@@ -110,10 +110,10 @@ public class ContactModelMapper {
       }
     }
 
-    Contact.AvatarState avatarState = Contact.AvatarState.NONE;
+    AvatarState avatarState = AvatarState.NONE;
     int                 avatarSize  = 0;
     if (sharedContact.getAvatar().isPresent()) {
-      avatarState = sharedContact.getAvatar().get().isProfile() ? Contact.AvatarState.PROFILE : Contact.AvatarState.SYSTEM;
+      avatarState = sharedContact.getAvatar().get().isProfile() ? AvatarState.PROFILE : AvatarState.SYSTEM;
       avatarSize  = sharedContact.getAvatar().get().getAttachment().asPointer().getSize().or(0);
     }
 
