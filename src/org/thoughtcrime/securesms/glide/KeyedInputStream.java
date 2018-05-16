@@ -21,4 +21,8 @@ public class KeyedInputStream extends FilterInputStream implements Key {
   public void updateDiskCacheKey(@NonNull MessageDigest messageDigest) {
     messageDigest.update(key.getBytes());
   }
+
+  public @NonNull String getKey() {
+    return key;
+  }
 }

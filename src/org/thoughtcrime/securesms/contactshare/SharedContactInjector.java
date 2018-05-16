@@ -9,6 +9,7 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import org.thoughtcrime.securesms.contacts.ContactAccessor;
+import org.thoughtcrime.securesms.glide.KeyedInputStream;
 import org.thoughtcrime.securesms.mms.PartAuthority;
 import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.recipients.Recipient;
@@ -70,11 +71,11 @@ public class SharedContactInjector {
 
   public static class ResolvedContact {
 
-    private final Contact         contact;
-    private final List<Recipient> recipients;
-    private final InputStream     avatarStream;
+    private final Contact          contact;
+    private final List<Recipient>  recipients;
+    private final KeyedInputStream avatarStream;
 
-    private ResolvedContact(@Nullable Contact contact, @Nullable List<Recipient> recipients, @Nullable InputStream avatarStream) {
+    private ResolvedContact(@Nullable Contact contact, @Nullable List<Recipient> recipients, @Nullable KeyedInputStream avatarStream) {
       this.contact      = contact;
       this.recipients   = recipients != null ? recipients : Collections.emptyList();
       this.avatarStream = avatarStream;
@@ -88,7 +89,7 @@ public class SharedContactInjector {
       return recipients;
     }
 
-    public @Nullable InputStream getAvatarStream() {
+    public @Nullable KeyedInputStream getAvatarStream() {
       return avatarStream;
     }
   }

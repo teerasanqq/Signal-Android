@@ -20,6 +20,7 @@ import org.thoughtcrime.securesms.contactshare.SharedContactInjector;
 import org.thoughtcrime.securesms.contactshare.SharedContactInjector.ResolvedContact;
 import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.database.RecipientDatabase;
+import org.thoughtcrime.securesms.glide.KeyedInputStream;
 import org.thoughtcrime.securesms.mms.GlideRequests;
 import org.thoughtcrime.securesms.mms.SharedContactSlide;
 import org.thoughtcrime.securesms.recipients.Recipient;
@@ -49,6 +50,8 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
   private GlideRequests      glideRequests;
   private EventListener      eventListener;
 
+  private String imageKey;
+
   private final Map<String, Recipient> activeRecipients = new HashMap<>();
 
   public SharedContactView(Context context) {
@@ -75,10 +78,10 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
   private void initialize() {
     inflate(getContext(), R.layout.shared_contact_view, this);
 
-    avatarView                = findViewById(R.id.contact_avatar);
-    nameView                  = findViewById(R.id.contact_name);
-    numberView                = findViewById(R.id.contact_number);
-    actionButtonView          = findViewById(R.id.contact_action_button);
+    avatarView       = findViewById(R.id.contact_avatar);
+    nameView         = findViewById(R.id.contact_name);
+    numberView       = findViewById(R.id.contact_number);
+    actionButtonView = findViewById(R.id.contact_action_button);
   }
 
   public void setContact(@NonNull SharedContactSlide sharedContactSlide, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
@@ -102,13 +105,11 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
 
   @Override
   public void setResolvedContact(@Nullable ResolvedContact resolvedContact) {
+    this.contact = resolvedContact != null ? resolvedContact.getContact() : null;
 
     if (resolvedContact != null) {
-      if (!Util.equals(this.contact, resolvedContact.getContact())) {
-        this.contact = resolvedContact.getContact();
-        presentContact(resolvedContact.getContact());
-        presentAvatar(resolvedContact.getAvatarStream());
-      }
+      presentContact(resolvedContact.getContact());
+      presentAvatar(resolvedContact.getAvatarStream());
       presentActionButtons(resolvedContact.getRecipients());
     } else {
       clearView();
@@ -130,14 +131,16 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     }
   }
 
-  private void presentAvatar(@Nullable InputStream inputStream) {
-    if (inputStream != null) {
+  private void presentAvatar(@Nullable KeyedInputStream inputStream) {
+    if (inputStream != null && !Util.equals(inputStream.getKey(), imageKey)) {
+      imageKey = inputStream.getKey();
       glideRequests.load(inputStream)
                    .fallback(R.drawable.ic_contact_picture)
                    .circleCrop()
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                   .dontAnimate()
                    .into(avatarView);
-    } else {
+    } else if (inputStream == null) {
       glideRequests.load(R.drawable.ic_contact_picture)
                    .circleCrop()
                    .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -180,7 +183,7 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     } else {
       actionButtonView.setText(R.string.SharedContactView_add_to_contacts);
       actionButtonView.setOnClickListener(v -> {
-        if (eventListener != null) {
+        if (eventListener != null && contact != null) {
           eventListener.onAddToContactsClicked(sharedContactSlide, contact);
         }
       });
