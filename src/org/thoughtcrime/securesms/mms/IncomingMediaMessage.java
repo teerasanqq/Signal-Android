@@ -24,7 +24,6 @@ public class IncomingMediaMessage {
   private final long                expiresIn;
   private final boolean             expirationUpdate;
   private final QuoteModel          quote;
-  private final List<SharedContact> sharedContacts;
 
   private final List<Attachment> attachments = new LinkedList<>();
 
@@ -46,7 +45,6 @@ public class IncomingMediaMessage {
     this.expiresIn        = expiresIn;
     this.expirationUpdate = expirationUpdate;
     this.quote            = null;
-    this.sharedContacts   = Collections.emptyList();
 
     this.attachments.addAll(attachments);
   }
@@ -59,9 +57,8 @@ public class IncomingMediaMessage {
                               Optional<String> relay,
                               Optional<String> body,
                               Optional<SignalServiceGroup> group,
-                              Optional<List<SignalServiceAttachment>> attachments,
-                              Optional<QuoteModel> quote,
-                              List<SharedContact> sharedContacts)
+                              Optional<List<Attachment>> attachments,
+                              Optional<QuoteModel> quote)
   {
     this.push             = true;
     this.from             = from;
@@ -71,12 +68,11 @@ public class IncomingMediaMessage {
     this.expiresIn        = expiresIn;
     this.expirationUpdate = expirationUpdate;
     this.quote            = quote.orNull();
-    this.sharedContacts   = sharedContacts;
 
     if (group.isPresent()) this.groupId = Address.fromSerialized(GroupUtil.getEncodedId(group.get().getGroupId(), false));
     else                   this.groupId = null;
 
-    this.attachments.addAll(PointerAttachment.forPointers(attachments));
+    this.attachments.addAll(attachments.or(Collections.emptyList()));
   }
 
   public int getSubscriptionId() {
@@ -121,9 +117,5 @@ public class IncomingMediaMessage {
 
   public QuoteModel getQuote() {
     return quote;
-  }
-
-  public List<SharedContact> getSharedContacts() {
-    return sharedContacts;
   }
 }

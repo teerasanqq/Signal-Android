@@ -53,7 +53,7 @@ public class ContactReader {
     return contact;
   }
 
-  public @Nullable InputStream getAvatar() throws IOException {
+  public @Nullable KeyedInputStream getAvatar() throws IOException {
     if (inputStream.available() > 0) {
       return new KeyedInputStream(String.valueOf(contact.hashCode()), inputStream);
     }

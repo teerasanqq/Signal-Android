@@ -16,6 +16,7 @@ import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
 import org.thoughtcrime.securesms.attachments.PointerAttachment;
+import org.thoughtcrime.securesms.contactshare.ContactModelMapper;
 import org.thoughtcrime.securesms.crypto.IdentityKeyUtil;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
 import org.thoughtcrime.securesms.crypto.storage.SignalProtocolStoreImpl;
@@ -407,10 +408,7 @@ public class PushDecryptJob extends ContextJob {
                                                                  message.getExpiresInSeconds() * 1000L, true,
                                                                  Optional.fromNullable(envelope.getRelay()),
                                                                  Optional.absent(), message.getGroupInfo(),
-                                                                 Optional.absent(), Optional.absent(),
-                                                                 Collections.emptyList());
-
-
+                                                                 Optional.absent(), Optional.absent());
 
     database.insertSecureDecryptedMessageInbox(mediaMessage, -1);
 
@@ -534,9 +532,8 @@ public class PushDecryptJob extends ContextJob {
                                                                    Optional.fromNullable(envelope.getRelay()),
                                                                    message.getBody(),
                                                                    message.getGroupInfo(),
-                                                                   message.getAttachments(),
-                                                                   quote,
-                                                                   message.getSharedContacts().or(Collections.emptyList()));
+                                                                   Optional.of(buildAttachmentList(message)),
+                                                                   quote);
 
     if (message.getExpiresInSeconds() != recipient.getExpireMessages()) {
       handleExpirationUpdate(envelope, message, Optional.absent());
@@ -549,7 +546,7 @@ public class PushDecryptJob extends ContextJob {
 
       for (DatabaseAttachment attachment : attachments) {
         Job job = MediaUtil.SHARED_CONTACT.equals(attachment.getContentType()) ? new ContactAttachmentDownloadJob(context, insertResult.get().getMessageId(), attachment.getAttachmentId(), false)
-                                                                        : new AttachmentDownloadJob(context, insertResult.get().getMessageId(), attachment.getAttachmentId(), false);
+                                                                               : new AttachmentDownloadJob(context, insertResult.get().getMessageId(), attachment.getAttachmentId(), false);
         ApplicationContext.getInstance(context)
                           .getJobManager()
                           .add(job);
@@ -561,6 +558,15 @@ public class PushDecryptJob extends ContextJob {
 
       MessageNotifier.updateNotification(context, insertResult.get().getThreadId());
     }
+  }
+
+  private List<Attachment> buildAttachmentList(@NonNull SignalServiceDataMessage message) {
+    List<Attachment> attachments = new LinkedList<>();
+
+    attachments.addAll(PointerAttachment.forPointers(message.getAttachments()));
+    attachments.addAll(ContactModelMapper.remoteToAttachments(message.getSharedContacts().or(Collections.emptyList())));
+
+    return attachments;
   }
 
   private long handleSynchronizeSentExpirationUpdate(@NonNull SentTranscriptMessage message)

@@ -1,9 +1,20 @@
 package org.thoughtcrime.securesms.contactshare;
 
+import android.net.Uri;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.util.Log;
 
+import org.thoughtcrime.securesms.attachments.Attachment;
+import org.thoughtcrime.securesms.attachments.ContactAttachment;
+import org.thoughtcrime.securesms.attachments.PointerAttachment;
+import org.thoughtcrime.securesms.providers.SingleUseBlobProvider;
+import org.thoughtcrime.securesms.util.Util;
+import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -11,6 +22,8 @@ import java.util.List;
 import static org.thoughtcrime.securesms.contactshare.Contact.*;
 
 public class ContactModelMapper {
+
+  private static final String TAG = ContactModelMapper.class.getSimpleName();
 
   public static SharedContact.Builder localToRemoteBuilder(@NonNull Contact contact) {
     List<SharedContact.Phone>         phoneNumbers    = new ArrayList<>(contact.getPhoneNumbers().size());
@@ -57,16 +70,6 @@ public class ContactModelMapper {
                                       .withPhones(phoneNumbers)
                                       .withEmails(emails)
                                       .withAddresses(postalAddresses);
-  }
-
-  public static List<Contact> remoteToLocal(@NonNull List<SharedContact> sharedContacts) {
-    List<Contact> contacts = new ArrayList<>(sharedContacts.size());
-
-    for (SharedContact sharedContact : sharedContacts) {
-      contacts.add(remoteToLocal(sharedContact));
-    }
-
-    return contacts;
   }
 
   public static Contact remoteToLocal(@NonNull SharedContact sharedContact) {
@@ -118,6 +121,39 @@ public class ContactModelMapper {
     }
 
     return new Contact(name, sharedContact.getOrganization().orNull(), phoneNumbers, emails, postalAddresses, avatarState, avatarSize);
+  }
+
+  public static List<Attachment> remoteToAttachments(@NonNull List<SharedContact> sharedContacts) {
+    List<Attachment> attachments = new ArrayList<>(sharedContacts.size());
+
+    for (SharedContact sharedContact : sharedContacts) {
+      Attachment attachment = remoteToAttachment(sharedContact);
+      if (attachment != null) {
+        attachments.add(attachment);
+      }
+    }
+
+    return attachments;
+  }
+
+  private static @Nullable Attachment remoteToAttachment(@NonNull SharedContact sharedContact) {
+    Attachment avatar  = null;
+
+    if (sharedContact.getAvatar().isPresent()) {
+      avatar = PointerAttachment.forPointer(Optional.of(sharedContact.getAvatar().get().getAttachment())).orNull();
+    }
+
+    Contact contact = ContactModelMapper.remoteToLocal(sharedContact);
+
+    try (InputStream contactStream = new ContactStream(contact, null)) {
+      byte[]     contactBytes = Util.readFully(contactStream);
+      Uri        uri          = SingleUseBlobProvider.getInstance().createUri(contactBytes);
+
+      return  avatar != null ? new ContactAttachment(uri, avatar) : new ContactAttachment(uri);
+    } catch (IOException e) {
+      Log.w(TAG, "Encountered an exception while serializing the contact or writing it to disk. Skipping it.", e);
+    }
+    return null;
   }
 
   private static Phone.Type remoteToLocalType(SharedContact.Phone.Type type) {

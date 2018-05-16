@@ -37,12 +37,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.AttachmentId;
-import org.thoughtcrime.securesms.attachments.ContactAttachment;
 import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
-import org.thoughtcrime.securesms.attachments.PointerAttachment;
-import org.thoughtcrime.securesms.contactshare.Contact;
-import org.thoughtcrime.securesms.contactshare.ContactModelMapper;
-import org.thoughtcrime.securesms.contactshare.ContactStream;
 import org.thoughtcrime.securesms.crypto.AttachmentSecret;
 import org.thoughtcrime.securesms.crypto.ClassicDecryptingPartInputStream;
 import org.thoughtcrime.securesms.crypto.ModernDecryptingPartInputStream;
@@ -51,7 +46,6 @@ import org.thoughtcrime.securesms.database.helpers.SQLCipherOpenHelper;
 import org.thoughtcrime.securesms.mms.MediaStream;
 import org.thoughtcrime.securesms.mms.MmsException;
 import org.thoughtcrime.securesms.mms.PartAuthority;
-import org.thoughtcrime.securesms.providers.SingleUseBlobProvider;
 import org.thoughtcrime.securesms.util.BitmapDecodingException;
 import org.thoughtcrime.securesms.util.BitmapUtil;
 import org.thoughtcrime.securesms.util.JsonUtils;
@@ -60,8 +54,6 @@ import org.thoughtcrime.securesms.util.MediaUtil.ThumbnailData;
 import org.thoughtcrime.securesms.util.StorageUtil;
 import org.thoughtcrime.securesms.util.Util;
 import org.thoughtcrime.securesms.video.EncryptedMediaDataSource;
-import org.whispersystems.libsignal.util.guava.Optional;
-import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -293,7 +285,6 @@ public class AttachmentDatabase extends Database {
     }
   }
 
-
   @SuppressWarnings("ResultOfMethodCallIgnored")
   void deleteAllAttachments() {
     SQLiteDatabase database = databaseHelper.getWritableDatabase();
@@ -323,19 +314,18 @@ public class AttachmentDatabase extends Database {
   public void insertAttachmentsForPlaceholder(long mmsId, @NonNull AttachmentId attachmentId, @NonNull InputStream inputStream)
       throws MmsException
   {
-    DatabaseAttachment placeholder      = getAttachment(attachmentId);
-    SQLiteDatabase     database         = databaseHelper.getWritableDatabase();
-    ContentValues      values           = new ContentValues();
-    DataInfo           existingDataInfo = getAttachmentDataFileInfo(attachmentId, DATA);
-    DataInfo           newDataInfo      = setAttachmentData(inputStream);
+    DatabaseAttachment placeholder = getAttachment(attachmentId);
+    SQLiteDatabase     database    = databaseHelper.getWritableDatabase();
+    ContentValues      values      = new ContentValues();
+    DataInfo           dataInfo    = setAttachmentData(inputStream);
 
     if (placeholder != null && placeholder.isQuote() && !placeholder.getContentType().startsWith("image")) {
-      values.put(THUMBNAIL, newDataInfo.file.getAbsolutePath());
-      values.put(THUMBNAIL_RANDOM, newDataInfo.random);
+      values.put(THUMBNAIL, dataInfo.file.getAbsolutePath());
+      values.put(THUMBNAIL_RANDOM, dataInfo.random);
     } else {
-      values.put(DATA, newDataInfo.file.getAbsolutePath());
-      values.put(SIZE, newDataInfo.length);
-      values.put(DATA_RANDOM, newDataInfo.random);
+      values.put(DATA, dataInfo.file.getAbsolutePath());
+      values.put(SIZE, dataInfo.length);
+      values.put(DATA_RANDOM, dataInfo.random);
     }
 
     values.put(TRANSFER_STATE, TRANSFER_PROGRESS_DONE);
@@ -347,11 +337,8 @@ public class AttachmentDatabase extends Database {
 
     if (database.update(TABLE_NAME, values, PART_ID_WHERE, attachmentId.toStrings()) == 0) {
       //noinspection ResultOfMethodCallIgnored
-      newDataInfo.file.delete();
+      dataInfo.file.delete();
     } else {
-      if (existingDataInfo != null) {
-        existingDataInfo.file.delete();
-      }
       notifyConversationListeners(DatabaseFactory.getMmsDatabase(context).getThreadIdForMessage(mmsId));
       notifyConversationListListeners();
     }
@@ -359,7 +346,7 @@ public class AttachmentDatabase extends Database {
     thumbnailExecutor.submit(new ThumbnailFetchCallable(attachmentId));
   }
 
-  void insertAttachmentsForMessage(long mmsId, @NonNull List<Attachment> attachments, @NonNull List<Attachment> quoteAttachment, @NonNull List<SharedContact> sharedContacts)
+  void insertAttachmentsForMessage(long mmsId, @NonNull List<Attachment> attachments, @NonNull List<Attachment> quoteAttachment)
       throws MmsException
   {
     Log.w(TAG, "insertParts(" + attachments.size() + ")");
@@ -371,30 +358,6 @@ public class AttachmentDatabase extends Database {
 
     for (Attachment attachment : quoteAttachment) {
       insertAttachment(mmsId, attachment, true);
-    }
-
-    for (SharedContact sharedContact : sharedContacts) {
-      insertContactAttachment(mmsId, sharedContact);
-    }
-  }
-
-  private void insertContactAttachment(long mmsId, @NonNull SharedContact sharedContact) throws MmsException {
-    Attachment avatar  = null;
-
-    if (sharedContact.getAvatar().isPresent()) {
-      avatar = PointerAttachment.forPointer(Optional.of(sharedContact.getAvatar().get().getAttachment())).orNull();
-    }
-
-    Contact contact = ContactModelMapper.remoteToLocal(sharedContact);
-
-    try(InputStream contactStream = new ContactStream(contact, null)) {
-      byte[]     contactBytes = Util.readFully(contactStream);
-      Uri        uri          = SingleUseBlobProvider.getInstance().createUri(contactBytes);
-      Attachment attachment   = avatar != null ? new ContactAttachment(uri, avatar) : new ContactAttachment(uri);
-
-      insertAttachment(mmsId, attachment, false);
-    } catch (IOException e) {
-      Log.w(TAG, "Encountered an exception while serializing the contact or writing it to disk. Skipping it.", e);
     }
   }
 
@@ -640,7 +603,8 @@ public class AttachmentDatabase extends Database {
     }
   }
 
-  private AttachmentId insertAttachment(long mmsId, Attachment attachment, boolean quote)
+
+  public AttachmentId insertAttachment(long mmsId, Attachment attachment, boolean quote)
       throws MmsException
   {
     Log.w(TAG, "Inserting attachment for mms id: " + mmsId);

@@ -61,12 +61,10 @@ import org.thoughtcrime.securesms.util.TextSecurePreferences;
 import org.thoughtcrime.securesms.util.Util;
 import org.whispersystems.jobqueue.JobManager;
 import org.whispersystems.libsignal.util.guava.Optional;
-import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -634,8 +632,7 @@ public class MmsDatabase extends MessagingDatabase {
 
       return insertMediaMessage(request.getBody(),
                                 attachments,
-                                Collections.emptyList(),
-                                Collections.emptyList(),
+                                new LinkedList<>(),
                                 contentValues,
                                 null);
     } catch (NoSuchMessageException e) {
@@ -669,7 +666,7 @@ public class MmsDatabase extends MessagingDatabase {
     contentValues.put(CONTENT_LOCATION, contentLocation);
     contentValues.put(STATUS, Status.DOWNLOAD_INITIALIZED);
     contentValues.put(DATE_RECEIVED, generatePduCompatTimestamp());
-    contentValues.put(PART_COUNT, retrieved.getAttachments().size() + retrieved.getSharedContacts().size());
+    contentValues.put(PART_COUNT, retrieved.getAttachments().size());
     contentValues.put(SUBSCRIPTION_ID, retrieved.getSubscriptionId());
     contentValues.put(EXPIRES_IN, retrieved.getExpiresIn());
     contentValues.put(READ, retrieved.isExpirationUpdate() ? 1 : 0);
@@ -693,8 +690,7 @@ public class MmsDatabase extends MessagingDatabase {
       return Optional.absent();
     }
 
-
-    long messageId = insertMediaMessage(retrieved.getBody(), retrieved.getAttachments(), quoteAttachments, retrieved.getSharedContacts(), contentValues, null);
+    long messageId = insertMediaMessage(retrieved.getBody(), retrieved.getAttachments(), quoteAttachments, contentValues, null);
 
     if (!Types.isExpirationTimerUpdate(mailbox)) {
       DatabaseFactory.getThreadDatabase(context).incrementUnread(threadId, 1);
@@ -832,7 +828,7 @@ public class MmsDatabase extends MessagingDatabase {
       quoteAttachments.addAll(message.getOutgoingQuote().getAttachments());
     }
 
-    long messageId = insertMediaMessage(message.getBody(), message.getAttachments(), quoteAttachments, Collections.emptyList(), contentValues, insertListener);
+    long messageId = insertMediaMessage(message.getBody(), message.getAttachments(), quoteAttachments, contentValues, insertListener);
 
     if (message.getRecipient().getAddress().isGroup()) {
       List<Recipient>      members         = DatabaseFactory.getGroupDatabase(context).getGroupMembers(message.getRecipient().getAddress().toGroupString(), false);
@@ -855,7 +851,6 @@ public class MmsDatabase extends MessagingDatabase {
   private long insertMediaMessage(@Nullable String body,
                                   @NonNull List<Attachment> attachments,
                                   @NonNull List<Attachment> quoteAttachments,
-                                  @NonNull List<SharedContact> sharedContacts,
                                   @NonNull ContentValues contentValues,
                                   @Nullable SmsDatabase.InsertListener insertListener)
       throws MmsException
@@ -870,7 +865,7 @@ public class MmsDatabase extends MessagingDatabase {
     try {
       long messageId = db.insert(TABLE_NAME, null, contentValues);
 
-      partsDatabase.insertAttachmentsForMessage(messageId, attachments, quoteAttachments, sharedContacts);
+      partsDatabase.insertAttachmentsForMessage(messageId, attachments, quoteAttachments);
 
       db.setTransactionSuccessful();
       return messageId;

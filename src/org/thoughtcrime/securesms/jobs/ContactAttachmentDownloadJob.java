@@ -6,6 +6,7 @@ import android.util.Log;
 import org.greenrobot.eventbus.EventBus;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.AttachmentId;
+import org.thoughtcrime.securesms.attachments.ContactAttachment;
 import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.contactshare.ContactReader;
 import org.thoughtcrime.securesms.contactshare.ContactStream;
@@ -32,7 +33,7 @@ public class ContactAttachmentDownloadJob extends AttachmentDownloadJob {
 
   @Override
   void retrieveAttachment(long messageId,
-                          final AttachmentId attachmentId,
+                          final AttachmentId originalAttachmentId,
                           final Attachment attachment)
       throws IOException
   {
@@ -52,17 +53,21 @@ public class ContactAttachmentDownloadJob extends AttachmentDownloadJob {
         return;
       }
 
+      AttachmentId newAttachmentId = database.insertAttachment(messageId, new ContactAttachment(null), false);
+
       attachmentFile = createTempFile();
 
       SignalServiceAttachmentPointer pointer                 = createAttachmentPointer(attachment, contact.getAvatarSize());
       InputStream                    avatarStream            = messageReceiver.retrieveAttachment(pointer, attachmentFile, MAX_ATTACHMENT_SIZE, (total, progress) -> EventBus.getDefault().postSticky(new PartProgressEvent(attachment, total, progress)));
       InputStream                    contactWithAvatarStream = new ContactStream(contact, avatarStream);
 
-      database.insertAttachmentsForPlaceholder(messageId, attachmentId, contactWithAvatarStream);
+      database.insertAttachmentsForPlaceholder(messageId, newAttachmentId, contactWithAvatarStream);
+
+      database.deleteAttachment(originalAttachmentId);
 
     } catch (InvalidPartException | NonSuccessfulResponseCodeException | InvalidMessageException | MmsException e) {
       Log.w(TAG, e);
-      markFailed(messageId, attachmentId);
+      markFailed(messageId, originalAttachmentId);
     } finally {
       if (attachmentFile != null) {
         //noinspection ResultOfMethodCallIgnored

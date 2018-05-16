@@ -11,13 +11,13 @@ public class ContactAttachment extends Attachment {
 
   private final Uri uri;
 
-  public ContactAttachment(@NonNull Uri uri) {
+  public ContactAttachment(@Nullable Uri uri) {
     super(MediaUtil.SHARED_CONTACT, AttachmentDatabase.TRANSFER_PROGRESS_DONE, 0, null, null, null, null, null, null, false, 0, 0, false);
 
     this.uri = uri;
   }
 
-  public ContactAttachment(@NonNull Uri uri, @NonNull Attachment avatarAttachment)
+  public ContactAttachment(@Nullable Uri uri, @NonNull Attachment avatarAttachment)
   {
     super(MediaUtil.SHARED_CONTACT,
           avatarAttachment.getTransferState(),
