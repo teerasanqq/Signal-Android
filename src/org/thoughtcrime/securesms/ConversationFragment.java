@@ -26,7 +26,6 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.app.Fragment;
@@ -117,7 +116,7 @@ public class ConversationFragment extends Fragment
   private View                        composeDivider;
   private View                        scrollToBottomButton;
   private TextView                    scrollDateHeader;
-  private Contact pendingAddedContact;
+  private Contact                     pendingAddedContact;
 
   @Override
   public void onCreate(Bundle icicle) {
@@ -690,24 +689,22 @@ public class ConversationFragment extends Fragment
 
     @Override
     public void onMessageSharedContactClicked(@NonNull List<Recipient> choices) {
-      selectNumberAndOpenConversation(choices, null);
+      if (getContext() == null) return;
+
+      ContactUtil.selectRecipient(getContext(), choices, locale, recipient -> {
+        new RetrieveThreadIdTask(getContext(), recipient, threadId -> {
+          if (getContext() == null) return;
+          CommunicationActions.startConversation(getContext(), recipient.getAddress(), threadId, null);
+        }).execute();
+      });
     }
 
     @Override
     public void onInviteSharedContactClicked(@NonNull List<Recipient> choices) {
-      selectNumberAndOpenConversation(choices, getString(R.string.InviteActivity_lets_switch_to_signal, "https://sgnl.link/1KpeYmF"));
-    }
-
-    private void selectNumberAndOpenConversation(@NonNull List<Recipient> choices, @Nullable String message) {
       if (getContext() == null) return;
 
       ContactUtil.selectRecipient(getContext(), choices, locale, recipient -> {
-        if (getContext() == null) return;
-
-        new RetrieveThreadIdTask(getContext(), recipient, threadId -> {
-          if (getContext() == null) return;
-          CommunicationActions.startConversation(getContext(), recipient.getAddress(), threadId, message);
-        }).execute();
+        CommunicationActions.composeSmsThroughDefaultApp(getContext(), recipient.getAddress(), getString(R.string.InviteActivity_lets_switch_to_signal, "https://sgnl.link/1KpeYmF"));
       });
     }
   }
