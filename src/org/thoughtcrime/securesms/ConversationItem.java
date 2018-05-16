@@ -417,7 +417,7 @@ public class ConversationItem extends LinearLayout
 
     if (hasSharedContact(messageRecord)) {
       sharedContactView.setVisibility(VISIBLE);
-      if (audioViewStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
+      if (audioViewStub.resolved())      mediaThumbnailStub.get().setVisibility(View.GONE);
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
 

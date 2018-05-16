@@ -7,7 +7,6 @@ import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.util.AttributeSet;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -36,13 +35,13 @@ import java.util.Locale;
 import java.util.Map;
 
 public class SharedContactView extends LinearLayout implements SharedContactInjector.Target,
-                                                               RecipientModifiedListener {
+                                                               RecipientModifiedListener
+{
 
   private ImageView avatarView;
   private TextView  nameView;
   private TextView  numberView;
   private TextView  actionButtonView;
-  private ViewGroup actionButtonContainerView;
 
   private SharedContactSlide sharedContactSlide;
   private Contact            contact;
@@ -80,7 +79,6 @@ public class SharedContactView extends LinearLayout implements SharedContactInje
     nameView                  = findViewById(R.id.contact_name);
     numberView                = findViewById(R.id.contact_number);
     actionButtonView          = findViewById(R.id.contact_action_button);
-    actionButtonContainerView = findViewById(R.id.contact_action_button_container);
   }
 
   public void setContact(@NonNull SharedContactSlide sharedContactSlide, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {

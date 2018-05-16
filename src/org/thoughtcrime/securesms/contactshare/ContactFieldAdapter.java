@@ -21,7 +21,7 @@ import java.util.Locale;
 
 import static org.thoughtcrime.securesms.contactshare.Contact.*;
 
-class ContactFieldAdapter extends RecyclerView.Adapter<ContactFieldAdapter.ContactFieldViewHolder>{
+class ContactFieldAdapter extends RecyclerView.Adapter<ContactFieldAdapter.ContactFieldViewHolder> {
 
   private final Locale      locale;
   private final boolean     selectable;

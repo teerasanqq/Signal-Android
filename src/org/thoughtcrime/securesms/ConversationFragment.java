@@ -102,7 +102,7 @@ public class ConversationFragment extends Fragment
   private final ActionModeCallback actionModeCallback     = new ActionModeCallback();
   private final ItemClickListener  selectionClickListener = new ConversationFragmentItemClickListener();
 
-  private ConversationFragmentListener    listener;
+  private ConversationFragmentListener listener;
 
   private Recipient                   recipient;
   private long                        threadId;

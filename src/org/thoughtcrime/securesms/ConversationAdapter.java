@@ -91,14 +91,14 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
 
   private final Set<MessageRecord> batchSelected = Collections.synchronizedSet(new HashSet<MessageRecord>());
 
-  private final @Nullable ItemClickListener  clickListener;
-  private final @NonNull  GlideRequests      glideRequests;
-  private final @NonNull  Locale             locale;
-  private final @NonNull  Recipient          recipient;
-  private final @NonNull  MmsSmsDatabase     db;
-  private final @NonNull  LayoutInflater     inflater;
-  private final @NonNull  Calendar           calendar;
-  private final @NonNull  MessageDigest      digest;
+  private final @Nullable ItemClickListener clickListener;
+  private final @NonNull  GlideRequests     glideRequests;
+  private final @NonNull  Locale            locale;
+  private final @NonNull  Recipient         recipient;
+  private final @NonNull  MmsSmsDatabase    db;
+  private final @NonNull  LayoutInflater    inflater;
+  private final @NonNull  Calendar          calendar;
+  private final @NonNull  MessageDigest     digest;
 
   private MessageRecord recordToPulseHighlight;
 
@@ -143,14 +143,14 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
   ConversationAdapter(Context context, Cursor cursor) {
     super(context, cursor);
     try {
-      this.glideRequests      = null;
-      this.locale             = null;
-      this.clickListener      = null;
-      this.recipient          = null;
-      this.inflater           = null;
-      this.db                 = null;
-      this.calendar           = null;
-      this.digest             = MessageDigest.getInstance("SHA1");
+      this.glideRequests = null;
+      this.locale        = null;
+      this.clickListener = null;
+      this.recipient     = null;
+      this.inflater      = null;
+      this.db            = null;
+      this.calendar      = null;
+      this.digest        = MessageDigest.getInstance("SHA1");
     } catch (NoSuchAlgorithmException nsae) {
       throw new AssertionError("SHA1 isn't supported!");
     }
@@ -166,14 +166,14 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
     super(context, cursor);
 
     try {
-      this.glideRequests      = glideRequests;
-      this.locale             = locale;
-      this.clickListener      = clickListener;
-      this.recipient          = recipient;
-      this.inflater           = LayoutInflater.from(context);
-      this.db                 = DatabaseFactory.getMmsSmsDatabase(context);
-      this.calendar           = Calendar.getInstance();
-      this.digest             = MessageDigest.getInstance("SHA1");
+      this.glideRequests = glideRequests;
+      this.locale        = locale;
+      this.clickListener = clickListener;
+      this.recipient     = recipient;
+      this.inflater      = LayoutInflater.from(context);
+      this.db            = DatabaseFactory.getMmsSmsDatabase(context);
+      this.calendar      = Calendar.getInstance();
+      this.digest        = MessageDigest.getInstance("SHA1");
 
       setHasStableIds(true);
     } catch (NoSuchAlgorithmException nsae) {
@@ -461,5 +461,6 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
       return viewHolder;
     }
   }
+
 }
 

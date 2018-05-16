@@ -67,9 +67,7 @@ import java.util.Locale;
 /**
  * @author Jake McGinty
  */
-public class MessageDetailsActivity extends PassphraseRequiredActionBarActivity implements LoaderCallbacks<Cursor>,
-                                                                                           RecipientModifiedListener
-{
+public class MessageDetailsActivity extends PassphraseRequiredActionBarActivity implements LoaderCallbacks<Cursor>, RecipientModifiedListener {
   private final static String TAG = MessageDetailsActivity.class.getSimpleName();
 
   public final static String MESSAGE_ID_EXTRA     = "message_id";
