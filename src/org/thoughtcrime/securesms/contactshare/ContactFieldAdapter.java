@@ -13,15 +13,13 @@ import android.widget.TextView;
 import com.annimon.stream.Stream;
 
 import org.thoughtcrime.securesms.R;
-import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.Contact.Phone;
-import org.thoughtcrime.securesms.contactshare.model.Selectable;
+import org.thoughtcrime.securesms.contactshare.Contact.Phone;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import static org.thoughtcrime.securesms.contactshare.model.Contact.*;
+import static org.thoughtcrime.securesms.contactshare.Contact.*;
 
 class ContactFieldAdapter extends RecyclerView.Adapter<ContactFieldAdapter.ContactFieldViewHolder>{
 

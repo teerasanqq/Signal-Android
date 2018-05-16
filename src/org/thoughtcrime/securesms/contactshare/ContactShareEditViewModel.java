@@ -8,9 +8,6 @@ import android.support.annotation.NonNull;
 
 import com.annimon.stream.Stream;
 
-import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
-import org.thoughtcrime.securesms.contactshare.model.Selectable;
 import org.thoughtcrime.securesms.util.SingleLiveEvent;
 
 import java.util.ArrayList;

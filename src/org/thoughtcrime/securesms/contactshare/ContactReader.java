@@ -1,4 +1,4 @@
-package org.thoughtcrime.securesms.contactshare.model;
+package org.thoughtcrime.securesms.contactshare;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;

@@ -1,4 +1,4 @@
-package org.thoughtcrime.securesms.contactshare.model;
+package org.thoughtcrime.securesms.contactshare;
 
 import android.support.annotation.NonNull;
 
@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import static org.thoughtcrime.securesms.contactshare.model.Contact.*;
+import static org.thoughtcrime.securesms.contactshare.Contact.*;
 
 public class ContactModelMapper {
 

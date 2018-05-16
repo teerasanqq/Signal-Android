@@ -1,4 +1,4 @@
-package org.thoughtcrime.securesms.contactshare.model;
+package org.thoughtcrime.securesms.contactshare;
 
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -7,7 +7,6 @@ import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.thoughtcrime.securesms.util.JsonUtils;
@@ -41,13 +40,13 @@ public class Contact implements Parcelable {
   @JsonProperty
   private final int                 avatarSize;
 
-  public Contact(@JsonProperty("name")            @NonNull  Name                name,
-                 @JsonProperty("organization")    @Nullable String              organization,
-                 @JsonProperty("phoneNumbers")    @NonNull  List<Phone>         phoneNumbers,
-                 @JsonProperty("emails")          @NonNull  List<Email>         emails,
-                 @JsonProperty("postalAddresses") @NonNull  List<PostalAddress> postalAddresses,
-                 @JsonProperty("avatarState")     @NonNull  AvatarState         avatarState,
-                 @JsonProperty("avatarSize")                int                 avatarSize)
+  Contact(@JsonProperty("name")            @NonNull  Name                name,
+          @JsonProperty("organization")    @Nullable String              organization,
+          @JsonProperty("phoneNumbers")    @NonNull  List<Phone>         phoneNumbers,
+          @JsonProperty("emails")          @NonNull  List<Email>         emails,
+          @JsonProperty("postalAddresses") @NonNull  List<PostalAddress> postalAddresses,
+          @JsonProperty("avatarState")     @NonNull  AvatarState         avatarState,
+          @JsonProperty("avatarSize")                int                 avatarSize)
   {
     this.name            = name;
     this.organization    = organization;
@@ -205,12 +204,12 @@ public class Contact implements Parcelable {
     @JsonProperty
     private final String middleName;
 
-    public Name(@JsonProperty("displayName") @Nullable String displayName,
-                @JsonProperty("givenName")   @Nullable String givenName,
-                @JsonProperty("familyName")  @Nullable String familyName,
-                @JsonProperty("prefix")      @Nullable String prefix,
-                @JsonProperty("suffix")      @Nullable String suffix,
-                @JsonProperty("middleName")  @Nullable String middleName)
+    Name(@JsonProperty("displayName") @Nullable String displayName,
+         @JsonProperty("givenName")   @Nullable String givenName,
+         @JsonProperty("familyName")  @Nullable String familyName,
+         @JsonProperty("prefix")      @Nullable String prefix,
+         @JsonProperty("suffix")      @Nullable String suffix,
+         @JsonProperty("middleName")  @Nullable String middleName)
     {
       this.displayName = displayName;
       this.givenName  = givenName;
@@ -220,7 +219,7 @@ public class Contact implements Parcelable {
       this.middleName = middleName;
     }
 
-    Name(Parcel in) {
+    private Name(Parcel in) {
       this(in.readString(), in.readString(), in.readString(), in.readString(), in.readString(), in.readString());
     }
 
@@ -327,9 +326,9 @@ public class Contact implements Parcelable {
 
     private boolean selected;
 
-    public Phone(@JsonProperty("number") @NonNull  String number,
-                 @JsonProperty("type")   @NonNull  Type   type,
-                 @JsonProperty("label")  @Nullable String label)
+    Phone(@JsonProperty("number") @NonNull  String number,
+          @JsonProperty("type")   @NonNull  Type   type,
+          @JsonProperty("label")  @Nullable String label)
     {
       this.number   = number;
       this.type     = type;
@@ -414,7 +413,6 @@ public class Contact implements Parcelable {
 
   public static class Email implements Selectable, Parcelable {
 
-
     @JsonProperty
     private final String email;
 
@@ -426,9 +424,10 @@ public class Contact implements Parcelable {
 
     private boolean selected;
 
-    public Email(@JsonProperty("email") @NonNull  String email,
-                 @JsonProperty("type")  @NonNull  Type   type,
-                 @JsonProperty("label") @Nullable String label) {
+    Email(@JsonProperty("email") @NonNull  String email,
+          @JsonProperty("type")  @NonNull  Type   type,
+          @JsonProperty("label") @Nullable String label)
+    {
       this.email    = email;
       this.type     = type;
       this.label    = label;
@@ -541,15 +540,15 @@ public class Contact implements Parcelable {
 
     private boolean selected;
 
-    public PostalAddress(@JsonProperty("type")         @NonNull  Type   type,
-                         @JsonProperty("label")        @Nullable String label,
-                         @JsonProperty("street")       @Nullable String street,
-                         @JsonProperty("poBox")        @Nullable String poBox,
-                         @JsonProperty("neighborhood") @Nullable String neighborhood,
-                         @JsonProperty("city")         @Nullable String city,
-                         @JsonProperty("region")       @Nullable String region,
-                         @JsonProperty("postalCode")   @Nullable String postalCode,
-                         @JsonProperty("country")      @Nullable String country)
+    PostalAddress(@JsonProperty("type")         @NonNull  Type   type,
+                  @JsonProperty("label")        @Nullable String label,
+                  @JsonProperty("street")       @Nullable String street,
+                  @JsonProperty("poBox")        @Nullable String poBox,
+                  @JsonProperty("neighborhood") @Nullable String neighborhood,
+                  @JsonProperty("city")         @Nullable String city,
+                  @JsonProperty("region")       @Nullable String region,
+                  @JsonProperty("postalCode")   @Nullable String postalCode,
+                  @JsonProperty("country")      @Nullable String country)
     {
       this.type         = type;
       this.label        = label;

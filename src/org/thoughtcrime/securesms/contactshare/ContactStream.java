@@ -1,4 +1,4 @@
-package org.thoughtcrime.securesms.contactshare.model;
+package org.thoughtcrime.securesms.contactshare;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -6,12 +6,8 @@ import android.support.annotation.Nullable;
 import org.thoughtcrime.securesms.util.Conversions;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.SequenceInputStream;
 import java.util.Arrays;
 import java.util.Collections;

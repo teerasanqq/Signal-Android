@@ -15,10 +15,9 @@ import com.google.i18n.phonenumbers.NumberParseException;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.Phonenumber.PhoneNumber;
 
-import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.Contact.Email;
-import org.thoughtcrime.securesms.contactshare.model.Contact.Phone;
-import org.thoughtcrime.securesms.contactshare.model.Contact.PostalAddress;
+import org.thoughtcrime.securesms.contactshare.Contact.Email;
+import org.thoughtcrime.securesms.contactshare.Contact.Phone;
+import org.thoughtcrime.securesms.contactshare.Contact.PostalAddress;
 import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.recipients.Recipient;
 

@@ -12,13 +12,11 @@ import android.util.Log;
 
 import org.thoughtcrime.securesms.contacts.ContactsDatabase;
 import org.thoughtcrime.securesms.contacts.avatars.ContactPhoto;
-import org.thoughtcrime.securesms.contactshare.model.Contact;
-import org.thoughtcrime.securesms.contactshare.model.Contact.AvatarState;
-import org.thoughtcrime.securesms.contactshare.model.Contact.Email;
-import org.thoughtcrime.securesms.contactshare.model.Contact.Name;
-import org.thoughtcrime.securesms.contactshare.model.Contact.Phone;
-import org.thoughtcrime.securesms.contactshare.model.Contact.PostalAddress;
-import org.thoughtcrime.securesms.contactshare.model.ContactWithAvatar;
+import org.thoughtcrime.securesms.contactshare.Contact.AvatarState;
+import org.thoughtcrime.securesms.contactshare.Contact.Email;
+import org.thoughtcrime.securesms.contactshare.Contact.Name;
+import org.thoughtcrime.securesms.contactshare.Contact.Phone;
+import org.thoughtcrime.securesms.contactshare.Contact.PostalAddress;
 import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.database.ThreadDatabase;
 import org.thoughtcrime.securesms.recipients.Recipient;

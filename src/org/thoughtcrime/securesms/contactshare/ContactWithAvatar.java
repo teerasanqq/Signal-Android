@@ -1,4 +1,4 @@
-package org.thoughtcrime.securesms.contactshare.model;
+package org.thoughtcrime.securesms.contactshare;
 
 import android.net.Uri;
 import android.os.Parcel;
