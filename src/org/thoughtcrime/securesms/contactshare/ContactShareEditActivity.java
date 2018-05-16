@@ -17,7 +17,6 @@ import com.annimon.stream.Stream;
 
 import org.thoughtcrime.securesms.PassphraseRequiredActionBarActivity;
 import org.thoughtcrime.securesms.R;
-import org.thoughtcrime.securesms.SignalExecutors;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
 import org.thoughtcrime.securesms.mms.GlideApp;
 import org.thoughtcrime.securesms.util.DynamicLanguage;
@@ -30,7 +29,7 @@ import static org.thoughtcrime.securesms.contactshare.ContactShareEditViewModel.
 
 public class ContactShareEditActivity extends PassphraseRequiredActionBarActivity {
 
-  public  static final String KEY_CONTACTS  = "contacts";
+  public  static final String KEY_CONTACTS    = "contacts";
   private static final String KEY_CONTACT_IDS = "ids";
 
   private final DynamicTheme    dynamicTheme    = new DynamicTheme();

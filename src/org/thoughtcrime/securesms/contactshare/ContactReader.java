@@ -4,10 +4,11 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import org.thoughtcrime.securesms.glide.KeyedInputStream;
+import org.thoughtcrime.securesms.util.Util;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 public class ContactReader {
 
@@ -17,30 +18,20 @@ public class ContactReader {
   public ContactReader(@NonNull InputStream inputStream) throws IOException {
     this.inputStream = inputStream;
 
-    DataInputStream dataStream    = new DataInputStream(inputStream);
-    int             version       = dataStream.readInt();
+    int version = readInt(inputStream);
 
     if (version != ContactStream.VERSION) {
       throw new IOException("Unexpected version: " + version);
     }
 
-    int contactLength = dataStream.readInt();
+    int contactLength = readInt(inputStream);
 
     if (contactLength <= 0) {
       throw new IOException("Invalid contact length: " + contactLength);
     }
 
     byte[] contactBytes = new byte[contactLength];
-
-    int totalRead = 0;
-    int read      = 0;
-    while ((read = inputStream.read(contactBytes, totalRead, contactBytes.length - totalRead)) > 0 && totalRead < contactBytes.length) {
-      totalRead += read;
-    }
-
-    if (totalRead < contactBytes.length) {
-      throw new IOException("Failed to read all of the contact bytes.");
-    }
+    Util.readFully(inputStream, contactBytes);
 
     contact = Contact.deserialize(new String(contactBytes));
 
@@ -58,5 +49,11 @@ public class ContactReader {
       return new KeyedInputStream(String.valueOf(contact.hashCode()), inputStream);
     }
     return null;
+  }
+
+  private static int readInt(@NonNull InputStream inputStream) throws  IOException {
+    byte[] buffer = new byte[4];
+    Util.readFully(inputStream, buffer);
+    return ByteBuffer.wrap(buffer).getInt();
   }
 }

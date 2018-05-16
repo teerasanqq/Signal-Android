@@ -222,7 +222,6 @@ public class ConversationItem extends LinearLayout
     setSimInfo(messageRecord);
     setExpiration(messageRecord);
     setQuote(messageRecord);
-//    setSharedContacts(messageRecord);
   }
 
   @Override
