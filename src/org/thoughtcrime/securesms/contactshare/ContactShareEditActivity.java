@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -77,7 +78,7 @@ public class ContactShareEditActivity extends PassphraseRequiredActionBarActivit
     contactList.setAdapter(contactAdapter);
 
     ContactRepository contactRepository = new ContactRepository(this,
-                                                                SignalExecutors.DATABASE,
+                                                                AsyncTask.THREAD_POOL_EXECUTOR,
                                                                 dynamicLanguage.getCurrentLocale(),
                                                                 DatabaseFactory.getContactsDatabase(this),
                                                                 DatabaseFactory.getThreadDatabase(this));

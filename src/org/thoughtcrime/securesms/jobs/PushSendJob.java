@@ -175,32 +175,30 @@ public abstract class PushSendJob extends SendJob {
     List<SharedContact> contacts = new LinkedList<>();
 
     for (Attachment attachment : attachments) {
-      if (!MediaUtil.SHARED_CONTACT.equals(attachment.getContentType()) || attachment.getDataUri() == null) {
-        continue;
-      }
+      if (MediaUtil.SHARED_CONTACT.equals(attachment.getContentType()) && attachment.getDataUri() != null) {
+        try {
+          ContactReader         reader       = new ContactReader(PartAuthority.getAttachmentStream(context, attachment.getDataUri()));
+          Contact               contact      = reader.getContact();
+          InputStream           avatarStream = reader.getAvatar();
+          SharedContact.Builder builder      = ContactModelMapper.localToRemoteBuilder(contact);
 
-      try {
-        ContactReader         reader       = new ContactReader(PartAuthority.getAttachmentStream(context, attachment.getDataUri()));
-        Contact               contact      = reader.getContact();
-        InputStream           avatarStream = reader.getAvatar();
-        SharedContact.Builder builder      = ContactModelMapper.localToRemoteBuilder(contact);
+          if (avatarStream != null) {
+            byte[]                  avatarBytes      = Util.readFully(avatarStream);
+            SignalServiceAttachment avatarAttachment = SignalServiceAttachment.newStreamBuilder()
+                                                                              .withContentType(MediaUtil.IMAGE_JPEG)
+                                                                              .withLength(avatarBytes.length)
+                                                                              .withStream(new ByteArrayInputStream(avatarBytes))
+                                                                              .build();
+            SharedContact.Avatar    avatar           = SharedContact.Avatar.newBuilder().withProfileFlag(contact.getAvatarState().isProfile())
+                                                                                        .withAttachment(avatarAttachment)
+                                                                                        .build();
+            builder.setAvatar(avatar);
+          }
 
-        if (avatarStream != null) {
-          byte[]                  avatarBytes      = Util.readFully(avatarStream);
-          SignalServiceAttachment avatarAttachment = SignalServiceAttachment.newStreamBuilder()
-                                                                            .withContentType(MediaUtil.IMAGE_JPEG)
-                                                                            .withLength(avatarBytes.length)
-                                                                            .withStream(new ByteArrayInputStream(avatarBytes))
-                                                                            .build();
-          SharedContact.Avatar    avatar           = SharedContact.Avatar.newBuilder().withProfileFlag(contact.getAvatarState().isProfile())
-                                                                                      .withAttachment(avatarAttachment)
-                                                                                      .build();
-          builder.setAvatar(avatar);
+          contacts.add(builder.build());
+        } catch (IOException e) {
+          Log.w(TAG, "Exception while reading contact stream. Can't send contact.", e);
         }
-
-        contacts.add(builder.build());
-      } catch (IOException e) {
-        Log.w(TAG, "Exception while reading contact stream. Can't send contact.", e);
       }
     }
 
