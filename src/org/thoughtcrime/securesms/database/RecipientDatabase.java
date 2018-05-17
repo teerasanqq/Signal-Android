@@ -448,7 +448,6 @@ public class RecipientDatabase extends Database {
               recipient.setSystemContactPhoto(Util.uri(entry.getValue().photoUri));
               recipient.setCustomLabel(entry.getValue().phoneLabel);
               recipient.setContactUri(Util.uri(entry.getValue().contactUri));
-              recipient.setIsSystemContact(true);
             }));
     }
   }
