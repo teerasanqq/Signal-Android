@@ -27,8 +27,6 @@ import java.util.List;
 
 public class Contact implements Parcelable {
 
-  private static final String TAG = Contact.class.getSimpleName();
-
   @JsonProperty
   private final Name                name;
 
@@ -139,20 +137,6 @@ public class Contact implements Parcelable {
       return new Contact[size];
     }
   };
-
-  public enum AvatarState {
-    NONE(false), PROFILE(true), SYSTEM(false);
-
-    private final boolean isProfile;
-
-    AvatarState(boolean isProfile) {
-      this.isProfile = isProfile;
-    }
-
-    public boolean isProfile() {
-      return isProfile;
-    }
-  }
 
   public static class Name implements Parcelable {
 
@@ -265,6 +249,7 @@ public class Contact implements Parcelable {
     @JsonProperty
     private final String label;
 
+    @JsonIgnore
     private boolean selected;
 
     Phone(@JsonProperty("number") @NonNull  String number,
@@ -343,6 +328,7 @@ public class Contact implements Parcelable {
     @JsonProperty
     private final String label;
 
+    @JsonIgnore
     private boolean selected;
 
     Email(@JsonProperty("email") @NonNull  String email,
@@ -439,6 +425,7 @@ public class Contact implements Parcelable {
     @JsonProperty
     private final String country;
 
+    @JsonIgnore
     private boolean selected;
 
     PostalAddress(@JsonProperty("type")         @NonNull  Type   type,

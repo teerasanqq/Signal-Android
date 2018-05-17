@@ -12,7 +12,6 @@ import android.util.Log;
 
 import org.thoughtcrime.securesms.contacts.ContactsDatabase;
 import org.thoughtcrime.securesms.contacts.avatars.ContactPhoto;
-import org.thoughtcrime.securesms.contactshare.Contact.AvatarState;
 import org.thoughtcrime.securesms.contactshare.Contact.Email;
 import org.thoughtcrime.securesms.contactshare.Contact.Name;
 import org.thoughtcrime.securesms.contactshare.Contact.Phone;
@@ -37,9 +36,9 @@ public class ContactRepository {
   private final Executor         executor;
   private final ContactsDatabase contactsDatabase;
 
-  public ContactRepository(@NonNull Context          context,
-                           @NonNull Executor         executor,
-                           @NonNull ContactsDatabase contactsDatabase)
+  ContactRepository(@NonNull Context          context,
+                    @NonNull Executor         executor,
+                    @NonNull ContactsDatabase contactsDatabase)
   {
     this.context          = context.getApplicationContext();
     this.executor         = executor;

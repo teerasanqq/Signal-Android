@@ -139,8 +139,10 @@ public class ConversationItem extends LinearLayout
 
   private int defaultBubbleColor;
 
-  private final PassthroughClickListener        passthroughClickListener = new PassthroughClickListener();
-  private final AttachmentDownloadClickListener downloadClickListener    = new AttachmentDownloadClickListener();
+  private final PassthroughClickListener        passthroughClickListener   = new PassthroughClickListener();
+  private final AttachmentDownloadClickListener downloadClickListener      = new AttachmentDownloadClickListener();
+  private final SharedContactEventListener      sharedContactEventListener = new SharedContactEventListener();
+  private final SharedContactClickListener      sharedContactClickListener = new SharedContactClickListener();
 
   private final Context context;
 
@@ -419,50 +421,12 @@ public class ConversationItem extends LinearLayout
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
 
-      List<Contact> contacts = ((MediaMmsMessageRecord) messageRecord).getSharedContacts();
-
-      //noinspection ConstantConditions
-      sharedContactView.setContact(contacts.get(0), glideRequests, locale);
-
-      sharedContactView.setOnClickListener(view -> {
-        if (eventListener != null && batchSelected.isEmpty()) {
-          eventListener.onSharedContactDetailsClicked(contacts.get(0), sharedContactView.getAvatarView());
-        } else {
-          passthroughClickListener.onClick(view);
-        }
-      });
-
+      sharedContactView.setContact(((MediaMmsMessageRecord) messageRecord).getSharedContacts().get(0), glideRequests, locale);
+      sharedContactView.setEventListener(sharedContactEventListener);
+      sharedContactView.setOnClickListener(sharedContactClickListener);
       sharedContactView.setOnLongClickListener(passthroughClickListener);
 
-      // TODO(greyson): Make all of this look like the other stuff (break out listeners and whatnot)
-      sharedContactView.setEventListener(new SharedContactView.EventListener() {
-        @Override
-        public void onAddToContactsClicked(@NonNull Contact contact) {
-          if (eventListener != null && batchSelected.isEmpty()) {
-            eventListener.onAddToContactsClicked(contact);
-          } else {
-            passthroughClickListener.onClick(sharedContactView);
-          }
-        }
-
-        @Override
-        public void onInviteClicked(@NonNull List<Recipient> choices) {
-          if (eventListener != null && batchSelected.isEmpty()) {
-            eventListener.onInviteSharedContactClicked(choices);
-          } else {
-            passthroughClickListener.onClick(sharedContactView);
-          }
-        }
-
-        @Override
-        public void onMessageClicked(@NonNull List<Recipient> choices) {
-          if (eventListener != null && batchSelected.isEmpty()) {
-            eventListener.onMessageSharedContactClicked(choices);
-          } else {
-            passthroughClickListener.onClick(sharedContactView);
-          }
-        }
-      });
+      bodyText.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
     } else if (hasAudio(messageRecord)) {
       audioViewStub.get().setVisibility(View.VISIBLE);
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
@@ -711,6 +675,46 @@ public class ConversationItem extends LinearLayout
       setAudioViewTint(messageRecord, conversationRecipient);
       setDocumentViewTint(messageRecord, conversationRecipient);
     });
+  }
+
+  private class SharedContactEventListener implements SharedContactView.EventListener {
+    @Override
+    public void onAddToContactsClicked(@NonNull Contact contact) {
+      if (eventListener != null && batchSelected.isEmpty()) {
+        eventListener.onAddToContactsClicked(contact);
+      } else {
+        passthroughClickListener.onClick(sharedContactView);
+      }
+    }
+
+    @Override
+    public void onInviteClicked(@NonNull List<Recipient> choices) {
+      if (eventListener != null && batchSelected.isEmpty()) {
+        eventListener.onInviteSharedContactClicked(choices);
+      } else {
+        passthroughClickListener.onClick(sharedContactView);
+      }
+    }
+
+    @Override
+    public void onMessageClicked(@NonNull List<Recipient> choices) {
+      if (eventListener != null && batchSelected.isEmpty()) {
+        eventListener.onMessageSharedContactClicked(choices);
+      } else {
+        passthroughClickListener.onClick(sharedContactView);
+      }
+    }
+  }
+
+  private class SharedContactClickListener implements View.OnClickListener {
+    @Override
+    public void onClick(View view) {
+      if (eventListener != null && batchSelected.isEmpty() && messageRecord.isMms() && !((MmsMessageRecord) messageRecord).getSharedContacts().isEmpty()) {
+        eventListener.onSharedContactDetailsClicked(((MmsMessageRecord) messageRecord).getSharedContacts().get(0), sharedContactView.getAvatarView());
+      } else {
+        passthroughClickListener.onClick(view);
+      }
+    }
   }
 
   private class AttachmentDownloadClickListener implements SlideClickListener {
