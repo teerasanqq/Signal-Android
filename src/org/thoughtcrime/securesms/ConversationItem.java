@@ -116,7 +116,6 @@ public class ConversationItem extends LinearLayout
 
   protected View             bodyBubble;
   private QuoteView          quoteView;
-  private SharedContactView  sharedContactView;
   private TextView           bodyText;
   private TextView           dateText;
   private TextView           simInfoText;
@@ -129,13 +128,14 @@ public class ConversationItem extends LinearLayout
   private DeliveryStatusView deliveryStatusIndicator;
   private AlertView          alertView;
 
-  private @NonNull  Set<MessageRecord>   batchSelected = new HashSet<>();
-  private @NonNull  Recipient            conversationRecipient;
-  private @NonNull  Stub<ThumbnailView>  mediaThumbnailStub;
-  private @NonNull  Stub<AudioView>      audioViewStub;
-  private @NonNull  Stub<DocumentView>   documentViewStub;
-  private @NonNull  ExpirationTimerView  expirationTimer;
-  private @Nullable EventListener        eventListener;
+  private @NonNull  Set<MessageRecord>      batchSelected = new HashSet<>();
+  private @NonNull  Recipient               conversationRecipient;
+  private @NonNull  Stub<ThumbnailView>     mediaThumbnailStub;
+  private @NonNull  Stub<AudioView>         audioViewStub;
+  private @NonNull  Stub<DocumentView>      documentViewStub;
+  private @NonNull  Stub<SharedContactView> sharedContactStub;
+  private @NonNull  ExpirationTimerView     expirationTimer;
+  private @Nullable EventListener           eventListener;
 
   private int defaultBubbleColor;
 
@@ -180,10 +180,10 @@ public class ConversationItem extends LinearLayout
     this.mediaThumbnailStub      = new Stub<>(findViewById(R.id.image_view_stub));
     this.audioViewStub           = new Stub<>(findViewById(R.id.audio_view_stub));
     this.documentViewStub        = new Stub<>(findViewById(R.id.document_view_stub));
+    this.sharedContactStub       = new Stub<>(findViewById(R.id.shared_contact_view_stub));
     this.expirationTimer         =            findViewById(R.id.expiration_indicator);
     this.groupSenderHolder       =            findViewById(R.id.group_sender_holder);
     this.quoteView               =            findViewById(R.id.quote_view);
-    this.sharedContactView       =            findViewById(R.id.shared_contact_view);
 
     setOnClickListener(new ClickListener(null));
 
@@ -416,22 +416,22 @@ public class ConversationItem extends LinearLayout
     boolean showControls = !messageRecord.isFailed() && (!messageRecord.isOutgoing() || messageRecord.isPending());
 
     if (hasSharedContact(messageRecord)) {
-      sharedContactView.setVisibility(VISIBLE);
+      sharedContactStub.get().setVisibility(VISIBLE);
       if (audioViewStub.resolved())      mediaThumbnailStub.get().setVisibility(View.GONE);
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
 
-      sharedContactView.setContact(((MediaMmsMessageRecord) messageRecord).getSharedContacts().get(0), glideRequests, locale);
-      sharedContactView.setEventListener(sharedContactEventListener);
-      sharedContactView.setOnClickListener(sharedContactClickListener);
-      sharedContactView.setOnLongClickListener(passthroughClickListener);
+      sharedContactStub.get().setContact(((MediaMmsMessageRecord) messageRecord).getSharedContacts().get(0), glideRequests, locale);
+      sharedContactStub.get().setEventListener(sharedContactEventListener);
+      sharedContactStub.get().setOnClickListener(sharedContactClickListener);
+      sharedContactStub.get().setOnLongClickListener(passthroughClickListener);
 
       bodyText.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
     } else if (hasAudio(messageRecord)) {
       audioViewStub.get().setVisibility(View.VISIBLE);
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
-      sharedContactView.setVisibility(GONE);
+      if (sharedContactStub.resolved())  sharedContactStub.get().setVisibility(GONE);
 
       //noinspection ConstantConditions
       audioViewStub.get().setAudio(((MediaMmsMessageRecord) messageRecord).getSlideDeck().getAudioSlide(), showControls);
@@ -443,7 +443,7 @@ public class ConversationItem extends LinearLayout
       documentViewStub.get().setVisibility(View.VISIBLE);
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (audioViewStub.resolved())      audioViewStub.get().setVisibility(View.GONE);
-      sharedContactView.setVisibility(GONE);
+      if (sharedContactStub.resolved())  sharedContactStub.get().setVisibility(GONE);
 
       //noinspection ConstantConditions
       documentViewStub.get().setDocument(((MediaMmsMessageRecord)messageRecord).getSlideDeck().getDocumentSlide(), showControls);
@@ -456,7 +456,7 @@ public class ConversationItem extends LinearLayout
       mediaThumbnailStub.get().setVisibility(View.VISIBLE);
       if (audioViewStub.resolved())    audioViewStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved()) documentViewStub.get().setVisibility(View.GONE);
-      sharedContactView.setVisibility(GONE);
+      if (sharedContactStub.resolved())  sharedContactStub.get().setVisibility(GONE);
 
       //noinspection ConstantConditions
       Slide      thumbnailSlide = ((MmsMessageRecord) messageRecord).getSlideDeck().getThumbnailSlide();
@@ -477,7 +477,7 @@ public class ConversationItem extends LinearLayout
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (audioViewStub.resolved())      audioViewStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
-      sharedContactView.setVisibility(GONE);
+      if (sharedContactStub.resolved())  sharedContactStub.get().setVisibility(GONE);
       bodyText.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
   }
@@ -683,7 +683,7 @@ public class ConversationItem extends LinearLayout
       if (eventListener != null && batchSelected.isEmpty()) {
         eventListener.onAddToContactsClicked(contact);
       } else {
-        passthroughClickListener.onClick(sharedContactView);
+        passthroughClickListener.onClick(sharedContactStub.get());
       }
     }
 
@@ -692,7 +692,7 @@ public class ConversationItem extends LinearLayout
       if (eventListener != null && batchSelected.isEmpty()) {
         eventListener.onInviteSharedContactClicked(choices);
       } else {
-        passthroughClickListener.onClick(sharedContactView);
+        passthroughClickListener.onClick(sharedContactStub.get());
       }
     }
 
@@ -701,7 +701,7 @@ public class ConversationItem extends LinearLayout
       if (eventListener != null && batchSelected.isEmpty()) {
         eventListener.onMessageSharedContactClicked(choices);
       } else {
-        passthroughClickListener.onClick(sharedContactView);
+        passthroughClickListener.onClick(sharedContactStub.get());
       }
     }
   }
@@ -710,7 +710,7 @@ public class ConversationItem extends LinearLayout
     @Override
     public void onClick(View view) {
       if (eventListener != null && batchSelected.isEmpty() && messageRecord.isMms() && !((MmsMessageRecord) messageRecord).getSharedContacts().isEmpty()) {
-        eventListener.onSharedContactDetailsClicked(((MmsMessageRecord) messageRecord).getSharedContacts().get(0), sharedContactView.getAvatarView());
+        eventListener.onSharedContactDetailsClicked(((MmsMessageRecord) messageRecord).getSharedContacts().get(0), sharedContactStub.get().getAvatarView());
       } else {
         passthroughClickListener.onClick(view);
       }
