@@ -8,8 +8,8 @@ import org.greenrobot.eventbus.EventBus;
 import org.thoughtcrime.securesms.ApplicationContext;
 import org.thoughtcrime.securesms.TextSecureExpiredException;
 import org.thoughtcrime.securesms.attachments.Attachment;
+import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.contactshare.ContactModelMapper;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.crypto.MasterSecret;
 import org.thoughtcrime.securesms.crypto.ProfileKeyUtil;
 import org.thoughtcrime.securesms.database.Address;
@@ -172,13 +172,13 @@ public abstract class PushSendJob extends SendJob {
   List<SharedContact> getSharedContactsFor(OutgoingMediaMessage mediaMessage) {
     List<SharedContact> sharedContacts = new LinkedList<>();
 
-    for (ContactWithAvatar contactWithAvatar : mediaMessage.getContactsWithAvatars()) {
-      SharedContact.Builder builder = ContactModelMapper.localToRemoteBuilder(contactWithAvatar.getContact());
+    for (Contact contact : mediaMessage.getSharedContacts()) {
+      SharedContact.Builder builder = ContactModelMapper.localToRemoteBuilder(contact);
       SharedContact.Avatar  avatar  = null;
 
-      if (contactWithAvatar.getAvatarAttachment() != null) {
-        avatar = SharedContact.Avatar.newBuilder().withAttachment(getAttachmentFor(contactWithAvatar.getAvatarAttachment()))
-                                                  .withProfileFlag(contactWithAvatar.getContact().getAvatarState().isProfile())
+      if (contact.getAvatar() != null && contact.getAvatar().getAttachment() != null) {
+        avatar = SharedContact.Avatar.newBuilder().withAttachment(getAttachmentFor(contact.getAvatarAttachment()))
+                                                  .withProfileFlag(contact.getAvatar().isProfile())
                                                   .build();
       }
 

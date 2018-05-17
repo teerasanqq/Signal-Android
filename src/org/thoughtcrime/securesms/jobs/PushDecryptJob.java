@@ -3,7 +3,6 @@ package org.thoughtcrime.securesms.jobs;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
@@ -17,8 +16,8 @@ import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
 import org.thoughtcrime.securesms.attachments.PointerAttachment;
+import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.contactshare.ContactModelMapper;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.crypto.IdentityKeyUtil;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
 import org.thoughtcrime.securesms.crypto.storage.SignalProtocolStoreImpl;
@@ -30,7 +29,6 @@ import org.thoughtcrime.securesms.database.MessagingDatabase;
 import org.thoughtcrime.securesms.database.MessagingDatabase.InsertResult;
 import org.thoughtcrime.securesms.database.MessagingDatabase.SyncMessageId;
 import org.thoughtcrime.securesms.database.MmsDatabase;
-import org.thoughtcrime.securesms.database.MmsSmsDatabase;
 import org.thoughtcrime.securesms.database.NoSuchMessageException;
 import org.thoughtcrime.securesms.database.PushDatabase;
 import org.thoughtcrime.securesms.database.RecipientDatabase;
@@ -60,7 +58,6 @@ import org.thoughtcrime.securesms.util.Base64;
 import org.thoughtcrime.securesms.util.GroupUtil;
 import org.thoughtcrime.securesms.util.IdentityUtil;
 import org.thoughtcrime.securesms.util.TextSecurePreferences;
-import org.thoughtcrime.securesms.util.Util;
 import org.whispersystems.jobqueue.JobParameters;
 import org.whispersystems.libsignal.DuplicateMessageException;
 import org.whispersystems.libsignal.IdentityKey;
@@ -528,19 +525,19 @@ public class PushDecryptJob extends ContextJob {
                                   @NonNull Optional<Long> smsMessageId)
       throws MmsException
   {
-    MmsDatabase                       database       = DatabaseFactory.getMmsDatabase(context);
-    Recipient                         recipient      = getMessageDestination(envelope, message);
-    Optional<QuoteModel>              quote          = getValidatedQuote(message.getQuote());
-    Optional<List<ContactWithAvatar>> sharedContacts = getContactsWithAvatars(message.getSharedContacts());
-    IncomingMediaMessage mediaMessage = new IncomingMediaMessage(Address.fromExternal(context, envelope.getSource()),
-                                                                 message.getTimestamp(), -1,
-                                                                 message.getExpiresInSeconds() * 1000L, false,
-                                                                 Optional.fromNullable(envelope.getRelay()),
-                                                                 message.getBody(),
-                                                                 message.getGroupInfo(),
-                                                                 message.getAttachments(),
-                                                                 quote,
-                                                                 sharedContacts);
+    MmsDatabase             database       = DatabaseFactory.getMmsDatabase(context);
+    Recipient               recipient      = getMessageDestination(envelope, message);
+    Optional<QuoteModel>    quote          = getValidatedQuote(message.getQuote());
+    Optional<List<Contact>> sharedContacts = getContacts(message.getSharedContacts());
+    IncomingMediaMessage    mediaMessage   = new IncomingMediaMessage(Address.fromExternal(context, envelope.getSource()),
+                                                                      message.getTimestamp(), -1,
+                                                                      message.getExpiresInSeconds() * 1000L, false,
+                                                                      Optional.fromNullable(envelope.getRelay()),
+                                                                      message.getBody(),
+                                                                      message.getGroupInfo(),
+                                                                      message.getAttachments(),
+                                                                      quote,
+                                                                      sharedContacts);
 
     if (message.getExpiresInSeconds() != recipient.getExpireMessages()) {
       handleExpirationUpdate(envelope, message, Optional.absent());
@@ -588,16 +585,16 @@ public class PushDecryptJob extends ContextJob {
   private long handleSynchronizeSentMediaMessage(@NonNull SentTranscriptMessage message)
       throws MmsException
   {
-    MmsDatabase                        database       = DatabaseFactory.getMmsDatabase(context);
-    Recipient                          recipients     = getSyncMessageDestination(message);
-    Optional<QuoteModel>               quote          = getValidatedQuote(message.getMessage().getQuote());
-    Optional<List<ContactWithAvatar>>  sharedContacts = getContactsWithAvatars(message.getMessage().getSharedContacts());
-    OutgoingMediaMessage               mediaMessage   = new OutgoingMediaMessage(recipients, message.getMessage().getBody().orNull(),
-                                                                                 PointerAttachment.forPointers(message.getMessage().getAttachments()),
-                                                                                 message.getTimestamp(), -1,
-                                                                                 message.getMessage().getExpiresInSeconds() * 1000,
-                                                                                 ThreadDatabase.DistributionTypes.DEFAULT, quote.orNull(),
-                                                                                 sharedContacts.or(Collections.emptyList()));
+    MmsDatabase              database       = DatabaseFactory.getMmsDatabase(context);
+    Recipient                recipients     = getSyncMessageDestination(message);
+    Optional<QuoteModel>     quote          = getValidatedQuote(message.getMessage().getQuote());
+    Optional<List<Contact>>  sharedContacts = getContacts(message.getMessage().getSharedContacts());
+    OutgoingMediaMessage     mediaMessage   = new OutgoingMediaMessage(recipients, message.getMessage().getBody().orNull(),
+                                                                       PointerAttachment.forPointers(message.getMessage().getAttachments()),
+                                                                       message.getTimestamp(), -1,
+                                                                       message.getMessage().getExpiresInSeconds() * 1000,
+                                                                       ThreadDatabase.DistributionTypes.DEFAULT, quote.orNull(),
+                                                                       sharedContacts.or(Collections.emptyList()));
 
     mediaMessage = new OutgoingSecureMediaMessage(mediaMessage);
 
@@ -897,16 +894,16 @@ public class PushDecryptJob extends ContextJob {
                                       PointerAttachment.forPointers(quote.get().getAttachments())));
   }
 
-  private Optional<List<ContactWithAvatar>> getContactsWithAvatars(Optional<List<SharedContact>> sharedContacts) {
+  private Optional<List<Contact>> getContacts(Optional<List<SharedContact>> sharedContacts) {
     if (!sharedContacts.isPresent()) return Optional.absent();
 
-    List<ContactWithAvatar> contactsWithAvatars = new ArrayList<>(sharedContacts.get().size());
+    List<Contact> contacts = new ArrayList<>(sharedContacts.get().size());
 
     for (SharedContact sharedContact : sharedContacts.get()) {
-      contactsWithAvatars.add(ContactModelMapper.remoteToLocal(sharedContact));
+      contacts.add(ContactModelMapper.remoteToLocal(sharedContact));
     }
 
-    return Optional.of(contactsWithAvatars);
+    return Optional.of(contacts);
   }
 
   private Optional<InsertResult> insertPlaceholder(@NonNull SignalServiceEnvelope envelope) {

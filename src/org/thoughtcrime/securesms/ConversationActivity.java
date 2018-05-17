@@ -96,9 +96,9 @@ import org.thoughtcrime.securesms.components.reminder.ReminderView;
 import org.thoughtcrime.securesms.components.reminder.UnauthorizedReminder;
 import org.thoughtcrime.securesms.contacts.ContactAccessor;
 import org.thoughtcrime.securesms.contacts.ContactAccessor.ContactData;
+import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.contactshare.ContactShareEditActivity;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.crypto.IdentityKeyParcelable;
 import org.thoughtcrime.securesms.crypto.SecurityEvent;
 import org.thoughtcrime.securesms.database.Address;
@@ -1407,12 +1407,12 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     else if (contactData.numbers.size() > 1)  selectContactInfo(contactData);
   }
 
-  private void sendSharedContact(List<ContactWithAvatar> contactsWithAvatars) {
+  private void sendSharedContact(List<Contact> contacts) {
     int        subscriptionId = sendButton.getSelectedTransport().getSimSubscriptionId().or(-1);
     long       expiresIn      = recipient.getExpireMessages() * 1000L;
     boolean    initiating     = threadId == -1;
 
-    sendMediaMessage(isSmsForced(), "", attachmentManager.buildSlideDeck(), contactsWithAvatars, expiresIn, subscriptionId, initiating);
+    sendMediaMessage(isSmsForced(), "", attachmentManager.buildSlideDeck(), contacts, expiresIn, subscriptionId, initiating);
   }
 
   private void selectContactInfo(ContactData contactData) {
@@ -1700,13 +1700,13 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     sendMediaMessage(forceSms, getMessage(), attachmentManager.buildSlideDeck(), Collections.emptyList(), expiresIn, subscriptionId, initiating);
   }
 
-  private ListenableFuture<Void> sendMediaMessage(final    boolean                 forceSms,
-                                                           String                  body,
-                                                           SlideDeck               slideDeck,
-                                                           List<ContactWithAvatar> contactsWithAvatars,
-                                                  final    long                    expiresIn,
-                                                  final    int                     subscriptionId,
-                                                  final    boolean                 initiating)
+  private ListenableFuture<Void> sendMediaMessage(final    boolean       forceSms,
+                                                           String        body,
+                                                           SlideDeck     slideDeck,
+                                                           List<Contact> contactsWithAvatars,
+                                                  final    long          expiresIn,
+                                                  final    int           subscriptionId,
+                                                  final    boolean       initiating)
   {
     OutgoingMediaMessage outgoingMessageCandidate = new OutgoingMediaMessage(recipient,
                                                                              slideDeck,
@@ -2102,14 +2102,14 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
       author = messageRecord.getIndividualRecipient();
     }
 
-    if (messageRecord.isMms() && !((MmsMessageRecord) messageRecord).getContactsWithAvatars().isEmpty()) {
-      ContactWithAvatar contactWithAvatar = ((MmsMessageRecord) messageRecord).getContactsWithAvatars().get(0);
-      String            displayName       = ContactUtil.getDisplayName(contactWithAvatar.getContact());
-      String            body              = getString(R.string.MessageNotifier_contact_message, displayName);
-      SlideDeck         slideDeck         = new SlideDeck();
+    if (messageRecord.isMms() && !((MmsMessageRecord) messageRecord).getSharedContacts().isEmpty()) {
+      Contact   contact     = ((MmsMessageRecord) messageRecord).getSharedContacts().get(0);
+      String    displayName = ContactUtil.getDisplayName(contact);
+      String    body        = getString(R.string.MessageNotifier_contact_message, displayName);
+      SlideDeck slideDeck   = new SlideDeck();
 
-      if (contactWithAvatar.getAvatarAttachment() != null) {
-        slideDeck.addSlide(MediaUtil.getSlideForAttachment(this, contactWithAvatar.getAvatarAttachment()));
+      if (contact.getAvatarAttachment() != null) {
+        slideDeck.addSlide(MediaUtil.getSlideForAttachment(this, contact.getAvatarAttachment()));
       }
 
       inputPanel.setQuote(GlideApp.with(this),

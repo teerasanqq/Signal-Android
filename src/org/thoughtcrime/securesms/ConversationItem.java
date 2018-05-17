@@ -57,7 +57,6 @@ import org.thoughtcrime.securesms.components.QuoteView;
 import org.thoughtcrime.securesms.components.SharedContactView;
 import org.thoughtcrime.securesms.components.ThumbnailView;
 import org.thoughtcrime.securesms.contactshare.Contact;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.database.AttachmentDatabase;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
 import org.thoughtcrime.securesms.database.MmsDatabase;
@@ -395,7 +394,7 @@ public class ConversationItem extends LinearLayout
   }
 
   private boolean hasSharedContact(MessageRecord messageRecord) {
-    return messageRecord.isMms() && !((MmsMessageRecord)messageRecord).getContactsWithAvatars().isEmpty();
+    return messageRecord.isMms() && !((MmsMessageRecord)messageRecord).getSharedContacts().isEmpty();
   }
 
   private void setBodyText(MessageRecord messageRecord) {
@@ -420,14 +419,14 @@ public class ConversationItem extends LinearLayout
       if (mediaThumbnailStub.resolved()) mediaThumbnailStub.get().setVisibility(View.GONE);
       if (documentViewStub.resolved())   documentViewStub.get().setVisibility(View.GONE);
 
-      List<ContactWithAvatar> contactsWithAvatars = ((MediaMmsMessageRecord) messageRecord).getContactsWithAvatars();
+      List<Contact> contacts = ((MediaMmsMessageRecord) messageRecord).getSharedContacts();
 
       //noinspection ConstantConditions
-      sharedContactView.setContact(contactsWithAvatars.get(0), glideRequests, locale);
+      sharedContactView.setContact(contacts.get(0), glideRequests, locale);
 
       sharedContactView.setOnClickListener(view -> {
         if (eventListener != null && batchSelected.isEmpty()) {
-          eventListener.onSharedContactDetailsClicked(contactsWithAvatars.get(0), sharedContactView.getAvatarView());
+          eventListener.onSharedContactDetailsClicked(contacts.get(0), sharedContactView.getAvatarView());
         } else {
           passthroughClickListener.onClick(view);
         }
@@ -438,9 +437,9 @@ public class ConversationItem extends LinearLayout
       // TODO(greyson): Make all of this look like the other stuff (break out listeners and whatnot)
       sharedContactView.setEventListener(new SharedContactView.EventListener() {
         @Override
-        public void onAddToContactsClicked(@NonNull ContactWithAvatar contactWithAvatar) {
+        public void onAddToContactsClicked(@NonNull Contact contact) {
           if (eventListener != null && batchSelected.isEmpty()) {
-            eventListener.onAddToContactsClicked(contactWithAvatar);
+            eventListener.onAddToContactsClicked(contact);
           } else {
             passthroughClickListener.onClick(sharedContactView);
           }

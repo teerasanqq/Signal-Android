@@ -15,44 +15,42 @@ import java.util.List;
 
 class ContactShareEditViewModel extends ViewModel {
 
-  private final MutableLiveData<List<ContactWithAvatar>> contactsWithAvatars;
-  private final SingleLiveEvent<Event>                   events;
-  private final ContactRepository                        repo;
+  private final MutableLiveData<List<Contact>> contacts;
+  private final SingleLiveEvent<Event>         events;
+  private final ContactRepository              repo;
 
   ContactShareEditViewModel(@NonNull List<Long>        contactIds,
                             @NonNull ContactRepository contactRepository)
   {
-    contactsWithAvatars = new MutableLiveData<>();
+    contacts = new MutableLiveData<>();
     events              = new SingleLiveEvent<>();
     repo                = contactRepository;
 
-    repo.getContactsWithAvatars(contactIds, retrieved -> {
+    repo.getContacts(contactIds, retrieved -> {
       if (retrieved.isEmpty()) {
         events.postValue(Event.BAD_CONTACT);
       } else {
-        contactsWithAvatars.postValue(retrieved);
+        contacts.postValue(retrieved);
       }
     });
   }
 
-  @NonNull LiveData<List<ContactWithAvatar>> getContactsWithAvatars() {
-    return contactsWithAvatars;
+  @NonNull LiveData<List<Contact>> getContacts() {
+    return contacts;
   }
 
-  @NonNull List<ContactWithAvatar> getFinalizedContacts() {
-    List<ContactWithAvatar> currentContacts = getCurrentContacts();
-    List<ContactWithAvatar> trimmedContacts = new ArrayList<>(currentContacts.size());
+  @NonNull List<Contact> getFinalizedContacts() {
+    List<Contact> currentContacts = getCurrentContacts();
+    List<Contact> trimmedContacts = new ArrayList<>(currentContacts.size());
 
-    for (ContactWithAvatar contact : currentContacts) {
-      Contact trimmed = new Contact(contact.getContact().getName(),
-                                    contact.getContact().getOrganization(),
-                                    trimSelectables(contact.getContact().getPhoneNumbers()),
-                                    trimSelectables(contact.getContact().getEmails()),
-                                    trimSelectables(contact.getContact().getPostalAddresses()),
-                                    contact.getContact().getAvatarState(),
-                                    contact.getContact().getAvatarSize(),
-                                    contact.getContact().getAttachmentId());
-      trimmedContacts.add(new ContactWithAvatar(trimmed, contact.getAvatarAttachment()));
+    for (Contact contact : currentContacts) {
+      Contact trimmed = new Contact(contact.getName(),
+                                    contact.getOrganization(),
+                                    trimSelectables(contact.getPhoneNumbers()),
+                                    trimSelectables(contact.getEmails()),
+                                    trimSelectables(contact.getPostalAddresses()),
+                                    contact.getAvatar());
+      trimmedContacts.add(trimmed);
     }
 
     return trimmedContacts;
@@ -67,8 +65,8 @@ class ContactShareEditViewModel extends ViewModel {
   }
 
   @NonNull
-  private List<ContactWithAvatar> getCurrentContacts() {
-    List<ContactWithAvatar> currentContacts = contactsWithAvatars.getValue();
+  private List<Contact> getCurrentContacts() {
+    List<Contact> currentContacts = contacts.getValue();
     return currentContacts != null ? currentContacts : new ArrayList<>();
   }
 

@@ -41,7 +41,6 @@ import org.thoughtcrime.securesms.attachments.AttachmentId;
 import org.thoughtcrime.securesms.attachments.DatabaseAttachment;
 import org.thoughtcrime.securesms.attachments.MmsNotificationAttachment;
 import org.thoughtcrime.securesms.contactshare.Contact;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.database.documents.IdentityKeyMismatch;
 import org.thoughtcrime.securesms.database.documents.IdentityKeyMismatchList;
 import org.thoughtcrime.securesms.database.documents.NetworkFailure;
@@ -560,21 +559,21 @@ public class MmsDatabase extends MessagingDatabase {
       if (cursor != null && cursor.moveToNext()) {
         List<DatabaseAttachment> associatedAttachments = attachmentDatabase.getAttachmentsForMessage(messageId);
 
-        long                    outboxType         = cursor.getLong(cursor.getColumnIndexOrThrow(MESSAGE_BOX));
-        String                  body               = cursor.getString(cursor.getColumnIndexOrThrow(BODY));
-        long                    timestamp          = cursor.getLong(cursor.getColumnIndexOrThrow(NORMALIZED_DATE_SENT));
-        int                     subscriptionId     = cursor.getInt(cursor.getColumnIndexOrThrow(SUBSCRIPTION_ID));
-        long                    expiresIn          = cursor.getLong(cursor.getColumnIndexOrThrow(EXPIRES_IN));
-        String                  address            = cursor.getString(cursor.getColumnIndexOrThrow(ADDRESS));
-        long                    threadId           = cursor.getLong(cursor.getColumnIndexOrThrow(THREAD_ID));
-        int                     distributionType   = DatabaseFactory.getThreadDatabase(context).getDistributionType(threadId);
-        List<Attachment>        attachments        = Stream.of(associatedAttachments).filterNot(Attachment::isQuote).map(a -> (Attachment)a).toList();
+        long             outboxType       = cursor.getLong(cursor.getColumnIndexOrThrow(MESSAGE_BOX));
+        String           body             = cursor.getString(cursor.getColumnIndexOrThrow(BODY));
+        long             timestamp        = cursor.getLong(cursor.getColumnIndexOrThrow(NORMALIZED_DATE_SENT));
+        int              subscriptionId   = cursor.getInt(cursor.getColumnIndexOrThrow(SUBSCRIPTION_ID));
+        long             expiresIn        = cursor.getLong(cursor.getColumnIndexOrThrow(EXPIRES_IN));
+        String           address          = cursor.getString(cursor.getColumnIndexOrThrow(ADDRESS));
+        long             threadId         = cursor.getLong(cursor.getColumnIndexOrThrow(THREAD_ID));
+        int              distributionType = DatabaseFactory.getThreadDatabase(context).getDistributionType(threadId);
+        List<Attachment> attachments      = Stream.of(associatedAttachments).filterNot(Attachment::isQuote).map(a -> (Attachment)a).toList();
 
-        long                    quoteId            = cursor.getLong(cursor.getColumnIndexOrThrow(QUOTE_ID));
-        String                  quoteAuthor        = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_AUTHOR));
-        String                  quoteText          = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_BODY));
-        List<Attachment>        quoteAttachments   = Stream.of(associatedAttachments).filter(Attachment::isQuote).map(a -> (Attachment)a).toList();
-        List<ContactWithAvatar> sharedContacts     = getAndRemoveSharedContacts(cursor, associatedAttachments);
+        long             quoteId          = cursor.getLong(cursor.getColumnIndexOrThrow(QUOTE_ID));
+        String           quoteAuthor      = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_AUTHOR));
+        String           quoteText        = cursor.getString(cursor.getColumnIndexOrThrow(QUOTE_BODY));
+        List<Attachment> quoteAttachments = Stream.of(associatedAttachments).filter(Attachment::isQuote).map(a -> (Attachment)a).toList();
+        List<Contact>    sharedContacts   = getAndRemoveSharedContacts(cursor, associatedAttachments);
 
         Recipient  recipient = Recipient.from(context, Address.fromSerialized(address), false);
         QuoteModel quote     = null;
@@ -607,7 +606,7 @@ public class MmsDatabase extends MessagingDatabase {
     }
   }
 
-  private List<ContactWithAvatar> getAndRemoveSharedContacts(@NonNull Cursor cursor, @NonNull List<DatabaseAttachment> attachments) {
+  private List<Contact> getAndRemoveSharedContacts(@NonNull Cursor cursor, @NonNull List<DatabaseAttachment> attachments) {
     String serializedContacts = cursor.getString(cursor.getColumnIndexOrThrow(SHARED_CONTACTS));
 
     if (TextUtils.isEmpty(serializedContacts)) {
@@ -620,24 +619,29 @@ public class MmsDatabase extends MessagingDatabase {
     }
 
     try {
-      List<ContactWithAvatar> contactsWithAvatars = new LinkedList<>();
-      JSONArray               jsonContacts        = new JSONArray(serializedContacts);
+      List<Contact> contacts     = new LinkedList<>();
+      JSONArray     jsonContacts = new JSONArray(serializedContacts);
 
       for (int i = 0; i < jsonContacts.length(); i++) {
         Contact contact = Contact.deserialize(jsonContacts.getJSONObject(i).toString());
         if (contact.getAttachmentId() != null) {
           DatabaseAttachment attachment = attachmentIdMap.get(contact.getAttachmentId());
-          contactsWithAvatars.add(new ContactWithAvatar(contact, attachment));
+          contacts.add(new Contact(contact.getName(),
+                                   contact.getOrganization(),
+                                   contact.getPhoneNumbers(),
+                                   contact.getEmails(),
+                                   contact.getPostalAddresses(),
+                                   new Contact.Avatar(contact.getAttachmentId(), attachment, contact.getAvatar().isProfile())));
 
           if (attachment != null) {
             attachments.remove(attachment);
           }
         } else {
-          contactsWithAvatars.add(new ContactWithAvatar(contact, (Attachment) null));
+          contacts.add(contact);
         }
       }
 
-      return contactsWithAvatars;
+      return contacts;
     } catch (JSONException | IOException e) {
       Log.w(TAG, "Failed to parse shared contacts.", e);
     }
@@ -683,7 +687,7 @@ public class MmsDatabase extends MessagingDatabase {
       return insertMediaMessage(request.getBody(),
                                 attachments,
                                 new LinkedList<>(),
-                                request.getContactsWithAvatars(),
+                                request.getSharedContacts(),
                                 contentValues,
                                 null);
     } catch (NoSuchMessageException e) {
@@ -741,7 +745,7 @@ public class MmsDatabase extends MessagingDatabase {
       return Optional.absent();
     }
 
-    long messageId = insertMediaMessage(retrieved.getBody(), retrieved.getAttachments(), quoteAttachments, retrieved.getContactsWithAvatars(), contentValues, null);
+    long messageId = insertMediaMessage(retrieved.getBody(), retrieved.getAttachments(), quoteAttachments, retrieved.getSharedContacts(), contentValues, null);
 
     if (!Types.isExpirationTimerUpdate(mailbox)) {
       DatabaseFactory.getThreadDatabase(context).incrementUnread(threadId, 1);
@@ -879,7 +883,7 @@ public class MmsDatabase extends MessagingDatabase {
       quoteAttachments.addAll(message.getOutgoingQuote().getAttachments());
     }
 
-    long messageId = insertMediaMessage(message.getBody(), message.getAttachments(), quoteAttachments, message.getContactsWithAvatars(), contentValues, insertListener);
+    long messageId = insertMediaMessage(message.getBody(), message.getAttachments(), quoteAttachments, message.getSharedContacts(), contentValues, insertListener);
 
     if (message.getRecipient().getAddress().isGroup()) {
       List<Recipient>      members         = DatabaseFactory.getGroupDatabase(context).getGroupMembers(message.getRecipient().getAddress().toGroupString(), false);
@@ -902,7 +906,7 @@ public class MmsDatabase extends MessagingDatabase {
   private long insertMediaMessage(@Nullable String body,
                                   @NonNull List<Attachment> attachments,
                                   @NonNull List<Attachment> quoteAttachments,
-                                  @NonNull List<ContactWithAvatar> contactsWithAvatars,
+                                  @NonNull List<Contact> sharedContacts,
                                   @NonNull ContentValues contentValues,
                                   @Nullable SmsDatabase.InsertListener insertListener)
       throws MmsException
@@ -910,9 +914,11 @@ public class MmsDatabase extends MessagingDatabase {
     SQLiteDatabase     db            = databaseHelper.getWritableDatabase();
     AttachmentDatabase partsDatabase = DatabaseFactory.getAttachmentDatabase(context);
 
-    List<Attachment> allAttachments = new LinkedList<>();
+    List<Attachment> allAttachments     = new LinkedList<>();
+    List<Attachment> contactAttachments = Stream.of(sharedContacts).map(Contact::getAvatarAttachment).filter(a -> a != null).toList();
+
     allAttachments.addAll(attachments);
-    allAttachments.addAll(Stream.of(contactsWithAvatars).map(ContactWithAvatar::getAvatarAttachment).filter(a -> a != null).toList());
+    allAttachments.addAll(contactAttachments);
 
     contentValues.put(BODY, body);
     contentValues.put(PART_COUNT, allAttachments.size());
@@ -922,7 +928,7 @@ public class MmsDatabase extends MessagingDatabase {
       long messageId = db.insert(TABLE_NAME, null, contentValues);
 
       Map<Attachment, AttachmentId> insertedAttachments = partsDatabase.insertAttachmentsForMessage(messageId, allAttachments, quoteAttachments);
-      updateMessageSharedContacts(messageId, insertedAttachments, contactsWithAvatars);
+      updateMessageSharedContacts(messageId, insertedAttachments, sharedContacts);
 
       db.setTransactionSuccessful();
       return messageId;
@@ -959,29 +965,27 @@ public class MmsDatabase extends MessagingDatabase {
     deleteThreads(singleThreadSet);
   }
 
-  private void updateMessageSharedContacts(long mmsId, @NonNull Map<Attachment, AttachmentId> insertedAttachments, @NonNull List<ContactWithAvatar> contactsWithAvatars) {
-    if (contactsWithAvatars.isEmpty()) return;
+  private void updateMessageSharedContacts(long mmsId, @NonNull Map<Attachment, AttachmentId> insertedAttachments, @NonNull List<Contact> contacts) {
+    if (contacts.isEmpty()) return;
 
     JSONArray sharedContactJson = new JSONArray();
 
-    for (ContactWithAvatar contactWithAvatar : contactsWithAvatars) {
+    for (Contact contact : contacts) {
       try {
         AttachmentId attachmentId = null;
-        if (contactWithAvatar.getAvatarAttachment() != null) {
-          attachmentId = insertedAttachments.get(contactWithAvatar.getAvatarAttachment());
+        if (contact.getAvatarAttachment() != null) {
+          attachmentId = insertedAttachments.get(contact.getAvatarAttachment());
         }
 
-        Contact populatedContact = new Contact(contactWithAvatar.getContact().getName(),
-                                               contactWithAvatar.getContact().getOrganization(),
-                                               contactWithAvatar.getContact().getPhoneNumbers(),
-                                               contactWithAvatar.getContact().getEmails(),
-                                               contactWithAvatar.getContact().getPostalAddresses(),
-                                               contactWithAvatar.getContact().getAvatarState(),
-                                               contactWithAvatar.getContact().getAvatarSize(),
-                                               attachmentId);
+        Contact populatedContact = new Contact(contact.getName(),
+                                               contact.getOrganization(),
+                                               contact.getPhoneNumbers(),
+                                               contact.getEmails(),
+                                               contact.getPostalAddresses(),
+                                               new Contact.Avatar(attachmentId, contact.getAvatarAttachment(), contact.getAvatar() != null && contact.getAvatar().isProfile()));
 
         sharedContactJson.put(new JSONObject(populatedContact.serialize()));
-      } catch (JSONException e) {
+      } catch (JSONException | IOException e) {
         Log.w(TAG, "Failed to serialize shared contact. Skipping it.", e);
       }
     }
@@ -1167,7 +1171,7 @@ public class MmsDatabase extends MessagingDatabase {
                                                      message.getOutgoingQuote().getText(),
                                                      new SlideDeck(context, message.getOutgoingQuote().getAttachments())) :
                                            null,
-                                       message.getContactsWithAvatars());
+                                       message.getSharedContacts());
     }
   }
 
@@ -1264,7 +1268,7 @@ public class MmsDatabase extends MessagingDatabase {
       List<IdentityKeyMismatch> mismatches      = getMismatchedIdentities(mismatchDocument);
       List<NetworkFailure>      networkFailures = getFailures(networkDocument);
       List<DatabaseAttachment>  attachments     = DatabaseFactory.getAttachmentDatabase(context).getAttachment(cursor);
-      List<ContactWithAvatar>   sharedContacts  = getAndRemoveSharedContacts(cursor, attachments);
+      List<Contact>             sharedContacts  = getAndRemoveSharedContacts(cursor, attachments);
       SlideDeck                 slideDeck       = getSlideDeck(attachments);
       Quote                     quote           = getQuote(cursor);
 

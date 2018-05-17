@@ -1,5 +1,6 @@
 package org.thoughtcrime.securesms.contactshare;
 
+import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.NonNull;
@@ -7,12 +8,18 @@ import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.json.JSONException;
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.AttachmentId;
+import org.thoughtcrime.securesms.attachments.UriAttachment;
+import org.thoughtcrime.securesms.database.AttachmentDatabase;
 import org.thoughtcrime.securesms.util.JsonUtils;
+import org.thoughtcrime.securesms.util.MediaUtil;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,31 +45,21 @@ public class Contact implements Parcelable {
   private final List<PostalAddress> postalAddresses;
 
   @JsonProperty
-  private final AvatarState         avatarState;
-
-  @JsonProperty
-  private final int                 avatarSize;
-
-  @JsonProperty
-  private final AttachmentId        attachmentId;
+  private final Avatar              avatar;
 
   public Contact(@JsonProperty("name")            @NonNull  Name                name,
                  @JsonProperty("organization")    @Nullable String              organization,
                  @JsonProperty("phoneNumbers")    @NonNull  List<Phone>         phoneNumbers,
                  @JsonProperty("emails")          @NonNull  List<Email>         emails,
                  @JsonProperty("postalAddresses") @NonNull  List<PostalAddress> postalAddresses,
-                 @JsonProperty("avatarState")     @NonNull  AvatarState         avatarState,
-                 @JsonProperty("avatarSize")                int                 avatarSize,
-                 @JsonProperty("attachmentId")    @Nullable AttachmentId        attachmentId)
+                 @JsonProperty("avatar")          @Nullable Avatar              avatar)
   {
     this.name            = name;
     this.organization    = organization;
     this.phoneNumbers    = Collections.unmodifiableList(phoneNumbers);
     this.emails          = Collections.unmodifiableList(emails);
     this.postalAddresses = Collections.unmodifiableList(postalAddresses);
-    this.avatarState     = avatarState;
-    this.avatarSize      = avatarSize;
-    this.attachmentId    = attachmentId;
+    this.avatar          = avatar;
   }
 
   private Contact(Parcel in) {
@@ -71,9 +68,7 @@ public class Contact implements Parcelable {
          in.createTypedArrayList(Phone.CREATOR),
          in.createTypedArrayList(Email.CREATOR),
          in.createTypedArrayList(PostalAddress.CREATOR),
-         AvatarState.valueOf(in.readString()),
-         in.readInt(),
-         null);
+         in.readParcelable(Avatar.class.getClassLoader()));
   }
 
   public @NonNull Name getName() {
@@ -96,58 +91,26 @@ public class Contact implements Parcelable {
     return postalAddresses;
   }
 
-  public @NonNull AvatarState getAvatarState() {
-    return avatarState;
+  public @Nullable Avatar getAvatar() {
+    return avatar;
   }
 
-  public int getAvatarSize() {
-    return avatarSize;
+  @JsonIgnore
+  public @Nullable Attachment getAvatarAttachment() {
+    return avatar != null ? avatar.getAttachment() : null;
   }
 
+  @JsonIgnore
   public @Nullable AttachmentId getAttachmentId() {
-    return attachmentId;
+    return avatar != null ? avatar.getAttachmentId() : null;
   }
 
-  public String serialize() {
-    try {
-      return JsonUtils.toJson(this);
-    } catch (IOException e) {
-      Log.w(TAG, "Failed to serialize to JSON.", e);
-      return "";
-    }
+  public String serialize() throws IOException {
+    return JsonUtils.toJson(this);
   }
 
   public static Contact deserialize(@NonNull String serialized) throws IOException {
     return JsonUtils.fromJson(serialized, Contact.class);
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
-    Contact contact = (Contact) o;
-
-    if (avatarSize != contact.avatarSize) return false;
-    if (!name.equals(contact.name)) return false;
-    if (organization != null ? !organization.equals(contact.organization) : contact.organization != null)
-      return false;
-    if (!phoneNumbers.equals(contact.phoneNumbers)) return false;
-    if (!emails.equals(contact.emails)) return false;
-    if (!postalAddresses.equals(contact.postalAddresses)) return false;
-    return avatarState == contact.avatarState;
-  }
-
-  @Override
-  public int hashCode() {
-    int result = name.hashCode();
-    result = 31 * result + (organization != null ? organization.hashCode() : 0);
-    result = 31 * result + phoneNumbers.hashCode();
-    result = 31 * result + emails.hashCode();
-    result = 31 * result + postalAddresses.hashCode();
-    result = 31 * result + avatarState.hashCode();
-    result = 31 * result + avatarSize;
-    return result;
   }
 
   @Override
@@ -162,8 +125,7 @@ public class Contact implements Parcelable {
     dest.writeTypedList(phoneNumbers);
     dest.writeTypedList(emails);
     dest.writeTypedList(postalAddresses);
-    dest.writeString(avatarState.name());
-    dest.writeInt(avatarSize);
+    dest.writeParcelable(avatar, flags);
   }
 
   public static final Creator<Contact> CREATOR = new Creator<Contact>() {
@@ -265,35 +227,6 @@ public class Contact implements Parcelable {
     }
 
     @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-
-      Name name = (Name) o;
-
-      if (displayName != null ? !displayName.equals(name.displayName) : name.displayName != null)
-        return false;
-      if (givenName != null ? !givenName.equals(name.givenName) : name.givenName != null)
-        return false;
-      if (familyName != null ? !familyName.equals(name.familyName) : name.familyName != null)
-        return false;
-      if (prefix != null ? !prefix.equals(name.prefix) : name.prefix != null) return false;
-      if (suffix != null ? !suffix.equals(name.suffix) : name.suffix != null) return false;
-      return middleName != null ? middleName.equals(name.middleName) : name.middleName == null;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = displayName != null ? displayName.hashCode() : 0;
-      result = 31 * result + (givenName != null ? givenName.hashCode() : 0);
-      result = 31 * result + (familyName != null ? familyName.hashCode() : 0);
-      result = 31 * result + (prefix != null ? prefix.hashCode() : 0);
-      result = 31 * result + (suffix != null ? suffix.hashCode() : 0);
-      result = 31 * result + (middleName != null ? middleName.hashCode() : 0);
-      return result;
-    }
-
-    @Override
     public int describeContents() {
       return 0;
     }
@@ -368,26 +301,6 @@ public class Contact implements Parcelable {
     @Override
     public boolean isSelected() {
       return selected;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-
-      Phone phone = (Phone) o;
-
-      if (!number.equals(phone.number)) return false;
-      if (type != phone.type) return false;
-      return label != null ? label.equals(phone.label) : phone.label == null;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = number.hashCode();
-      result = 31 * result + type.hashCode();
-      result = 31 * result + (label != null ? label.hashCode() : 0);
-      return result;
     }
 
     @Override
@@ -466,26 +379,6 @@ public class Contact implements Parcelable {
     @Override
     public boolean isSelected() {
       return selected;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-
-      Email email1 = (Email) o;
-
-      if (!email.equals(email1.email)) return false;
-      if (type != email1.type) return false;
-      return label != null ? label.equals(email1.label) : email1.label == null;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = email.hashCode();
-      result = 31 * result + type.hashCode();
-      result = 31 * result + (label != null ? label.hashCode() : 0);
-      return result;
     }
 
     @Override
@@ -629,40 +522,6 @@ public class Contact implements Parcelable {
     }
 
     @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-
-      PostalAddress that = (PostalAddress) o;
-
-      if (type != that.type) return false;
-      if (label != null ? !label.equals(that.label) : that.label != null) return false;
-      if (street != null ? !street.equals(that.street) : that.street != null) return false;
-      if (poBox != null ? !poBox.equals(that.poBox) : that.poBox != null) return false;
-      if (neighborhood != null ? !neighborhood.equals(that.neighborhood) : that.neighborhood != null)
-        return false;
-      if (city != null ? !city.equals(that.city) : that.city != null) return false;
-      if (region != null ? !region.equals(that.region) : that.region != null) return false;
-      if (postalCode != null ? !postalCode.equals(that.postalCode) : that.postalCode != null)
-        return false;
-      return country != null ? country.equals(that.country) : that.country == null;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = type != null ? type.hashCode() : 0;
-      result = 31 * result + (label != null ? label.hashCode() : 0);
-      result = 31 * result + (street != null ? street.hashCode() : 0);
-      result = 31 * result + (poBox != null ? poBox.hashCode() : 0);
-      result = 31 * result + (neighborhood != null ? neighborhood.hashCode() : 0);
-      result = 31 * result + (city != null ? city.hashCode() : 0);
-      result = 31 * result + (region != null ? region.hashCode() : 0);
-      result = 31 * result + (postalCode != null ? postalCode.hashCode() : 0);
-      result = 31 * result + (country != null ? country.hashCode() : 0);
-      return result;
-    }
-
-    @Override
     public int describeContents() {
       return 0;
     }
@@ -730,5 +589,76 @@ public class Contact implements Parcelable {
     public enum Type {
       HOME, WORK, CUSTOM
     }
+  }
+
+  public static class Avatar implements Parcelable {
+
+    @JsonProperty
+    private final AttachmentId attachmentId;
+
+    @JsonProperty
+    private final boolean      isProfile;
+
+    @JsonIgnore
+    private final Attachment   attachment;
+
+    public Avatar(@Nullable AttachmentId attachmentId, @Nullable Attachment attachment, boolean isProfile) {
+      this.attachmentId = attachmentId;
+      this.attachment   = attachment;
+      this.isProfile    = isProfile;
+    }
+
+    Avatar(@Nullable Uri attachmentUri, boolean isProfile) {
+      this(null, attachmentFromUri(attachmentUri), isProfile);
+    }
+
+    @JsonCreator
+    private Avatar(@JsonProperty("attachmentId") @Nullable AttachmentId attachmentId, @JsonProperty("isProfile") boolean isProfile) {
+      this(attachmentId, null, isProfile);
+    }
+
+    private Avatar(Parcel in) {
+      this((Uri) in.readParcelable(Uri.class.getClassLoader()), in.readByte() != 0);
+    }
+
+    public @Nullable AttachmentId getAttachmentId() {
+      return attachmentId;
+    }
+
+    public @Nullable Attachment getAttachment() {
+      return attachment;
+    }
+
+    public boolean isProfile() {
+      return isProfile;
+    }
+
+    @Override
+    public int describeContents() {
+      return 0;
+    }
+
+    private static Attachment attachmentFromUri(@Nullable Uri uri) {
+      if (uri == null) return null;
+      return new UriAttachment(uri, MediaUtil.IMAGE_JPEG, AttachmentDatabase.TRANSFER_PROGRESS_DONE, 0, null, false, false);
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+      dest.writeParcelable(attachment != null ? attachment.getDataUri() : null, flags);
+      dest.writeByte((byte) (isProfile ? 1 : 0));
+    }
+
+    public static final Creator<Avatar> CREATOR = new Creator<Avatar>() {
+      @Override
+      public Avatar createFromParcel(Parcel in) {
+        return new Avatar(in);
+      }
+
+      @Override
+      public Avatar[] newArray(int size) {
+        return new Avatar[size];
+      }
+    };
   }
 }

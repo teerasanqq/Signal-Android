@@ -2,13 +2,12 @@ package org.thoughtcrime.securesms.mms;
 
 import org.thoughtcrime.securesms.attachments.Attachment;
 import org.thoughtcrime.securesms.attachments.PointerAttachment;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
+import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.database.Address;
 import org.thoughtcrime.securesms.util.GroupUtil;
 import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachment;
 import org.whispersystems.signalservice.api.messages.SignalServiceGroup;
-import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -26,8 +25,8 @@ public class IncomingMediaMessage {
   private final boolean       expirationUpdate;
   private final QuoteModel    quote;
 
-  private final List<Attachment>        attachments    = new LinkedList<>();
-  private final List<ContactWithAvatar> sharedContacts = new LinkedList<>();
+  private final List<Attachment> attachments    = new LinkedList<>();
+  private final List<Contact>    sharedContacts = new LinkedList<>();
 
   public IncomingMediaMessage(Address from,
                               Optional<Address> groupId,
@@ -61,7 +60,7 @@ public class IncomingMediaMessage {
                               Optional<SignalServiceGroup> group,
                               Optional<List<SignalServiceAttachment>> attachments,
                               Optional<QuoteModel> quote,
-                              Optional<List<ContactWithAvatar>> sharedContacts)
+                              Optional<List<Contact>> sharedContacts)
   {
     this.push             = true;
     this.from             = from;
@@ -123,7 +122,7 @@ public class IncomingMediaMessage {
     return quote;
   }
 
-  public List<ContactWithAvatar> getContactsWithAvatars() {
+  public List<Contact> getSharedContacts() {
     return sharedContacts;
   }
 }

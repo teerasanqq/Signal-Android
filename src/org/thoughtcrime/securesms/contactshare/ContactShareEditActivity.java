@@ -81,7 +81,7 @@ public class ContactShareEditActivity extends PassphraseRequiredActionBarActivit
                                                                 DatabaseFactory.getContactsDatabase(this));
 
     viewModel = ViewModelProviders.of(this, new Factory(contactIds, contactRepository)).get(ContactShareEditViewModel.class);
-    viewModel.getContactsWithAvatars().observe(this, contacts -> {
+    viewModel.getContacts().observe(this, contacts -> {
       contactAdapter.setContacts(contacts);
       contactList.post(() -> contactList.scrollToPosition(0));
     });
@@ -106,10 +106,10 @@ public class ContactShareEditActivity extends PassphraseRequiredActionBarActivit
     }
   }
 
-  private void onSendClicked(List<ContactWithAvatar> contacts) {
+  private void onSendClicked(List<Contact> contacts) {
     Intent intent = new Intent();
 
-    ArrayList<ContactWithAvatar> contactArrayList = new ArrayList<>(contacts.size());
+    ArrayList<Contact> contactArrayList = new ArrayList<>(contacts.size());
     contactArrayList.addAll(contacts);
     intent.putExtra(KEY_CONTACTS, contactArrayList);
 

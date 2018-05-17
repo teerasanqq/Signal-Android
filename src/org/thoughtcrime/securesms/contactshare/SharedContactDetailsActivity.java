@@ -45,10 +45,8 @@ import static org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.*;
 
 public class SharedContactDetailsActivity extends PassphraseRequiredActionBarActivity implements RecipientModifiedListener {
 
-  private static final String TAG = SharedContactDetailsActivity.class.getSimpleName();
-
   private static final int    CODE_ADD_EDIT_CONTACT   = 2323;
-  private static final String KEY_CONTACT_WITH_AVATAR = "contact_with_avatar";
+  private static final String KEY_CONTACT = "contact";
 
   private ContactFieldAdapter contactFieldAdapter;
   private TextView            nameView;
@@ -62,16 +60,15 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
 
   private GlideRequests       glideRequests;
   private Contact             contact;
-  private ContactWithAvatar   contactWithAvatar;
 
   private final DynamicTheme    dynamicTheme    = new DynamicNoActionBarTheme();
   private final DynamicLanguage dynamicLanguage = new DynamicLanguage();
 
   private final Map<String, Recipient> activeRecipients = new HashMap<>();
 
-  public static Intent getIntent(@NonNull Context context, @NonNull ContactWithAvatar contactWithAvatar) {
+  public static Intent getIntent(@NonNull Context context, @NonNull Contact contact) {
     Intent intent = new Intent(context, SharedContactDetailsActivity.class);
-    intent.putExtra(KEY_CONTACT_WITH_AVATAR, contactWithAvatar);
+    intent.putExtra(KEY_CONTACT, contact);
     return intent;
   }
 
@@ -86,20 +83,20 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
     setContentView(R.layout.activity_shared_contact_details);
 
     if (getIntent() == null) {
-      throw new IllegalStateException("You must supply arguments to this activity. Please use the #newInstance() method.");
+      throw new IllegalStateException("You must supply arguments to this activity. Please use the #getIntent() method.");
     }
 
-    contactWithAvatar = getIntent().getParcelableExtra(KEY_CONTACT_WITH_AVATAR);
-    if (contactWithAvatar == null) {
-      throw new IllegalStateException("You must supply a ContactWithAttachments to this fragment. Please use the #newInstance() method.");
+    contact = getIntent().getParcelableExtra(KEY_CONTACT);
+    if (contact == null) {
+      throw new IllegalStateException("You must supply a contact to this activity. Please use the #getIntent() method.");
     }
 
     initToolbar();
     initViews();
 
-    presentContact(contactWithAvatar.getContact());
-    presentActionButtons(ContactUtil.getRecipients(this, contactWithAvatar.getContact()));
-    presentAvatar(contactWithAvatar.getAvatarAttachment() != null ? contactWithAvatar.getAvatarAttachment().getDataUri() : null);
+    presentContact(contact);
+    presentActionButtons(ContactUtil.getRecipients(this, contact));
+    presentAvatar(contact.getAvatarAttachment() != null ? contact.getAvatarAttachment().getDataUri() : null);
   }
 
   @Override
@@ -164,7 +161,7 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
         new AsyncTask<Void, Void, Intent>() {
           @Override
           protected Intent doInBackground(Void... voids) {
-            return ContactUtil.buildAddToContactsIntent(SharedContactDetailsActivity.this, contactWithAvatar);
+            return ContactUtil.buildAddToContactsIntent(SharedContactDetailsActivity.this, contact);
           }
 
           @Override

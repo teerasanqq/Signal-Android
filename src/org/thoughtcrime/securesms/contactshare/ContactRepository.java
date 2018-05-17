@@ -18,16 +18,16 @@ import org.thoughtcrime.securesms.contactshare.Contact.Name;
 import org.thoughtcrime.securesms.contactshare.Contact.Phone;
 import org.thoughtcrime.securesms.contactshare.Contact.PostalAddress;
 import org.thoughtcrime.securesms.database.Address;
-import org.thoughtcrime.securesms.database.ThreadDatabase;
 import org.thoughtcrime.securesms.recipients.Recipient;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executor;
+
+import static org.thoughtcrime.securesms.contactshare.Contact.*;
 
 public class ContactRepository {
 
@@ -46,21 +46,21 @@ public class ContactRepository {
     this.contactsDatabase = contactsDatabase;
   }
 
-  void getContactsWithAvatars(@NonNull List<Long> contactIds, @NonNull ValueCallback<List<ContactWithAvatar>> callback) {
+  void getContacts(@NonNull List<Long> contactIds, @NonNull ValueCallback<List<Contact>> callback) {
     executor.execute(() -> {
-      List<ContactWithAvatar> contactsWithAvatars = new ArrayList<>(contactIds.size());
+      List<Contact> contacts = new ArrayList<>(contactIds.size());
       for (long id : contactIds) {
-        ContactWithAvatar contactWithAvatar = getContactWithAvatar(id);
-        if (contactWithAvatar != null) {
-          contactsWithAvatars.add(contactWithAvatar);
+        Contact contact = getContact(id);
+        if (contact != null) {
+          contacts.add(contact);
         }
       }
-      callback.onComplete(contactsWithAvatars);
+      callback.onComplete(contacts);
     });
   }
 
   @WorkerThread
-  private @Nullable ContactWithAvatar getContactWithAvatar(long contactId) {
+  private @Nullable Contact getContact(long contactId) {
     Name name = getName(contactId);
     if (name == null) {
       Log.w(TAG, "Couldn't find a name associated with the provided contact ID.");
@@ -69,10 +69,9 @@ public class ContactRepository {
 
     List<Phone> phoneNumbers = getPhoneNumbers(contactId);
     AvatarInfo  avatarInfo   = getAvatarInfo(contactId, phoneNumbers);
-    AvatarState avatarState  = avatarInfo == null ? AvatarState.NONE : (avatarInfo.isProfile ? AvatarState.PROFILE : AvatarState.SYSTEM);
+    Avatar      avatar       = avatarInfo != null ? new Avatar(avatarInfo.uri, avatarInfo.isProfile) : null;
 
-    return new ContactWithAvatar(new Contact(name, null, phoneNumbers, getEmails(contactId), getPostalAddresses(contactId), avatarState, 0, null),
-                                 avatarInfo != null ? avatarInfo.uri : null);
+    return new Contact(name, null, phoneNumbers, getEmails(contactId), getPostalAddresses(contactId), avatar);
   }
 
   @WorkerThread

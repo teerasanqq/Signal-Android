@@ -33,7 +33,6 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.service.notification.StatusBarNotification;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationManagerCompat;
 import android.text.TextUtils;
 import android.util.Log;
@@ -432,8 +431,8 @@ public class MessageNotifier {
 
       if (KeyCachingService.isLocked(context)) {
         body = SpanUtil.italic(context.getString(R.string.MessageNotifier_locked_message));
-      } else if (record.isMms() && !((MmsMessageRecord) record).getContactsWithAvatars().isEmpty()) {
-        Contact contact     = ((MmsMessageRecord) record).getContactsWithAvatars().get(0).getContact();
+      } else if (record.isMms() && !((MmsMessageRecord) record).getSharedContacts().isEmpty()) {
+        Contact contact     = ((MmsMessageRecord) record).getSharedContacts().get(0);
         String  contactName = ContactUtil.getDisplayName(contact);
 
         if (!TextUtils.isEmpty(contactName)) {

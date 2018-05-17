@@ -55,8 +55,6 @@ import android.widget.Toast;
 import org.thoughtcrime.securesms.ConversationAdapter.HeaderViewHolder;
 import org.thoughtcrime.securesms.ConversationAdapter.ItemClickListener;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
-import org.thoughtcrime.securesms.contactshare.RefreshContactTask;
 import org.thoughtcrime.securesms.contactshare.RetrieveThreadIdTask;
 import org.thoughtcrime.securesms.contactshare.SharedContactDetailsActivity;
 import org.thoughtcrime.securesms.contactshare.Contact;
@@ -665,15 +663,15 @@ public class ConversationFragment extends Fragment
     }
 
     @Override
-    public void onSharedContactDetailsClicked(@NonNull ContactWithAvatar contactWithAvatar, @NonNull View avatarTransitionView) {
+    public void onSharedContactDetailsClicked(@NonNull Contact contact, @NonNull View avatarTransitionView) {
       if (getContext() != null && getActivity() != null) {
         Bundle bundle = ActivityOptionsCompat.makeSceneTransitionAnimation(getActivity(), avatarTransitionView, "avatar").toBundle();
-        ActivityCompat.startActivity(getActivity(), SharedContactDetailsActivity.getIntent(getContext(), contactWithAvatar), bundle);
+        ActivityCompat.startActivity(getActivity(), SharedContactDetailsActivity.getIntent(getContext(), contact), bundle);
       }
     }
 
     @Override
-    public void onAddToContactsClicked(@NonNull ContactWithAvatar contactWithAvatar) {
+    public void onAddToContactsClicked(@NonNull Contact contactWithAvatar) {
       if (getContext() != null) {
         new AsyncTask<Void, Void, Intent>() {
           @Override

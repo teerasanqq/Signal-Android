@@ -17,7 +17,6 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
 import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.database.RecipientDatabase;
 import org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.DecryptableUri;
@@ -41,10 +40,10 @@ public class SharedContactView extends LinearLayout implements RecipientModified
   private TextView  numberView;
   private TextView  actionButtonView;
 
-  private ContactWithAvatar contactWithAvatar;
-  private Locale            locale;
-  private GlideRequests     glideRequests;
-  private EventListener     eventListener;
+  private Contact       contact;
+  private Locale        locale;
+  private GlideRequests glideRequests;
+  private EventListener eventListener;
 
   private final Map<String, Recipient> activeRecipients = new HashMap<>();
 
@@ -78,17 +77,17 @@ public class SharedContactView extends LinearLayout implements RecipientModified
     actionButtonView = findViewById(R.id.contact_action_button);
   }
 
-  public void setContact(@NonNull ContactWithAvatar contactWithAvatar, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
+  public void setContact(@NonNull Contact contact, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
     this.glideRequests     = glideRequests;
     this.locale            = locale;
-    this.contactWithAvatar = contactWithAvatar;
+    this.contact = contact;
 
     Stream.of(activeRecipients.values()).forEach(recipient ->  recipient.removeListener(this));
     this.activeRecipients.clear();
 
-    presentContact(contactWithAvatar.getContact());
-    presentAvatar(contactWithAvatar.getAvatarAttachment() != null ? contactWithAvatar.getAvatarAttachment().getDataUri() : null);
-    presentActionButtons(ContactUtil.getRecipients(getContext(), contactWithAvatar.getContact()));
+    presentContact(contact);
+    presentAvatar(contact.getAvatarAttachment() != null ? contact.getAvatarAttachment().getDataUri() : null);
+    presentActionButtons(ContactUtil.getRecipients(getContext(), contact));
   }
 
   public void setEventListener(@NonNull EventListener eventListener) {
@@ -165,15 +164,15 @@ public class SharedContactView extends LinearLayout implements RecipientModified
     } else {
       actionButtonView.setText(R.string.SharedContactView_add_to_contacts);
       actionButtonView.setOnClickListener(v -> {
-        if (eventListener != null && contactWithAvatar != null) {
-          eventListener.onAddToContactsClicked(contactWithAvatar);
+        if (eventListener != null && contact != null) {
+          eventListener.onAddToContactsClicked(contact);
         }
       });
     }
   }
 
   public interface EventListener {
-    void onAddToContactsClicked(@NonNull ContactWithAvatar contactWithAvatar);
+    void onAddToContactsClicked(@NonNull Contact contact);
     void onInviteClicked(@NonNull List<Recipient> choices);
     void onMessageClicked(@NonNull List<Recipient> choices);
   }

@@ -124,9 +124,7 @@ public final class ContactUtil {
   }
 
   @WorkerThread
-  public static @NonNull Intent buildAddToContactsIntent(@NonNull Context context, @NonNull ContactWithAvatar contactWithAvatar) {
-    Contact contact = contactWithAvatar.getContact();
-
+  public static @NonNull Intent buildAddToContactsIntent(@NonNull Context context, @NonNull Contact contact) {
     Intent intent = new Intent(Intent.ACTION_INSERT_OR_EDIT);
     intent.setType(ContactsContract.Contacts.CONTENT_ITEM_TYPE);
 
@@ -169,11 +167,11 @@ public final class ContactUtil {
       intent.putExtra(ContactsContract.Intents.Insert.POSTAL_TYPE, getSystemType(contact.getPostalAddresses().get(0).getType()));
     }
 
-    if (contactWithAvatar.getAvatarAttachment() != null && contactWithAvatar.getAvatarAttachment().getDataUri() != null) {
+    if (contact.getAvatarAttachment() != null && contact.getAvatarAttachment().getDataUri() != null) {
       try {
         ContentValues values = new ContentValues();
         values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE);
-        values.put(ContactsContract.CommonDataKinds.Photo.PHOTO, Util.readFully(PartAuthority.getAttachmentStream(context, contactWithAvatar.getAvatarAttachment().getDataUri())));
+        values.put(ContactsContract.CommonDataKinds.Photo.PHOTO, Util.readFully(PartAuthority.getAttachmentStream(context, contact.getAvatarAttachment().getDataUri())));
 
         ArrayList<ContentValues> valuesArray = new ArrayList<>(1);
         valuesArray.add(values);

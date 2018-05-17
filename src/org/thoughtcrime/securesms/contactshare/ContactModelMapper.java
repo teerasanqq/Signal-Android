@@ -64,7 +64,7 @@ public class ContactModelMapper {
                                       .withAddresses(postalAddresses);
   }
 
-  public static ContactWithAvatar remoteToLocal(@NonNull SharedContact sharedContact) {
+  public static Contact remoteToLocal(@NonNull SharedContact sharedContact) {
     Name name = new Name(sharedContact.getName().getDisplay().orNull(),
         sharedContact.getName().getGiven().orNull(),
         sharedContact.getName().getFamily().orNull(),
@@ -105,18 +105,15 @@ public class ContactModelMapper {
       }
     }
 
-    // TODO(greyson): Clean this up
-    AvatarState avatarState = AvatarState.NONE;
-    int                 avatarSize  = 0;
-    Attachment attachment = null;
+    Avatar avatar = null;
     if (sharedContact.getAvatar().isPresent()) {
-      avatarState = sharedContact.getAvatar().get().isProfile() ? AvatarState.PROFILE : AvatarState.SYSTEM;
-      avatarSize  = sharedContact.getAvatar().get().getAttachment().asPointer().getSize().or(0);
-      attachment  = PointerAttachment.forPointer(Optional.of(sharedContact.getAvatar().get().getAttachment().asPointer())).get();
+      Attachment attachment = PointerAttachment.forPointer(Optional.of(sharedContact.getAvatar().get().getAttachment().asPointer())).get();
+      boolean    isProfile  = sharedContact.getAvatar().get().isProfile();
+
+      avatar = new Avatar(null, attachment, isProfile);
     }
 
-    Contact contact = new Contact(name, sharedContact.getOrganization().orNull(), phoneNumbers, emails, postalAddresses, avatarState, avatarSize, null);
-    return new ContactWithAvatar(contact, attachment);
+    return new Contact(name, sharedContact.getOrganization().orNull(), phoneNumbers, emails, postalAddresses, avatar);
   }
 
   private static Phone.Type remoteToLocalType(SharedContact.Phone.Type type) {

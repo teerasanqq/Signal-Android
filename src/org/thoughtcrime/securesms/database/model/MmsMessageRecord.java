@@ -5,7 +5,7 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
-import org.thoughtcrime.securesms.contactshare.ContactWithAvatar;
+import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.database.documents.IdentityKeyMismatch;
 import org.thoughtcrime.securesms.database.documents.NetworkFailure;
 import org.thoughtcrime.securesms.mms.Slide;
@@ -17,9 +17,9 @@ import java.util.List;
 
 public abstract class MmsMessageRecord extends MessageRecord {
 
-  private final @NonNull  SlideDeck               slideDeck;
-  private final @Nullable Quote                   quote;
-  private final @NonNull  List<ContactWithAvatar> contactsWithAvatars = new LinkedList<>();
+  private final @NonNull  SlideDeck     slideDeck;
+  private final @Nullable Quote         quote;
+  private final @NonNull  List<Contact> contacts = new LinkedList<>();
 
   MmsMessageRecord(Context context, long id, String body, Recipient conversationRecipient,
                    Recipient individualRecipient, int recipientDeviceId, long dateSent,
@@ -27,14 +27,14 @@ public abstract class MmsMessageRecord extends MessageRecord {
                    long type, List<IdentityKeyMismatch> mismatches,
                    List<NetworkFailure> networkFailures, int subscriptionId, long expiresIn,
                    long expireStarted, @NonNull SlideDeck slideDeck, int readReceiptCount,
-                   @Nullable Quote quote, @NonNull List<ContactWithAvatar> contactsWithAvatars)
+                   @Nullable Quote quote, @NonNull List<Contact> contacts)
   {
     super(context, id, body, conversationRecipient, individualRecipient, recipientDeviceId, dateSent, dateReceived, threadId, deliveryStatus, deliveryReceiptCount, type, mismatches, networkFailures, subscriptionId, expiresIn, expireStarted, readReceiptCount);
 
     this.slideDeck = slideDeck;
     this.quote     = quote;
 
-    this.contactsWithAvatars.addAll(contactsWithAvatars);
+    this.contacts.addAll(contacts);
   }
 
   @Override
@@ -66,7 +66,7 @@ public abstract class MmsMessageRecord extends MessageRecord {
     return quote;
   }
 
-  public @NonNull List<ContactWithAvatar> getContactsWithAvatars() {
-    return contactsWithAvatars;
+  public @NonNull List<Contact> getSharedContacts() {
+    return contacts;
   }
 }

@@ -22,9 +22,9 @@ import java.util.Locale;
 
 public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEditAdapter.ContactEditViewHolder> {
 
-  private final Locale                  locale;
-  private final GlideRequests           glideRequests;
-  private final List<ContactWithAvatar> contacts;
+  private final Locale        locale;
+  private final GlideRequests glideRequests;
+  private final List<Contact> contacts;
 
   ContactShareEditAdapter(@NonNull GlideRequests glideRequests, @NonNull Locale locale) {
     this.locale        = locale;
@@ -47,7 +47,7 @@ public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEd
     return contacts.size();
   }
 
-  void setContacts(@Nullable List<ContactWithAvatar> contacts) {
+  void setContacts(@Nullable List<Contact> contacts) {
     this.contacts.clear();
 
     if (contacts != null) {
@@ -76,12 +76,11 @@ public class ContactShareEditAdapter extends RecyclerView.Adapter<ContactShareEd
       fields.setAdapter(fieldAdapter);
     }
 
-    void bind(@NonNull ContactWithAvatar contactWithAvatar, @NonNull GlideRequests glideRequests) {
+    void bind(@NonNull Contact contact, @NonNull GlideRequests glideRequests) {
       Context context = itemView.getContext();
-      Contact contact = contactWithAvatar.getContact();
 
-      if (contactWithAvatar.getAvatarAttachment() != null && contactWithAvatar.getAvatarAttachment().getDataUri() != null) {
-        glideRequests.load(contactWithAvatar.getAvatarAttachment().getDataUri())
+      if (contact.getAvatarAttachment() != null && contact.getAvatarAttachment().getDataUri() != null) {
+        glideRequests.load(contact.getAvatarAttachment().getDataUri())
                      .fallback(R.drawable.ic_contact_picture)
                      .circleCrop()
                      .diskCacheStrategy(DiskCacheStrategy.ALL)
