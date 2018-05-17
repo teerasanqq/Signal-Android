@@ -98,11 +98,6 @@ public class Contact implements Parcelable {
     return avatar != null ? avatar.getAttachment() : null;
   }
 
-  @JsonIgnore
-  public @Nullable AttachmentId getAttachmentId() {
-    return avatar != null ? avatar.getAttachmentId() : null;
-  }
-
   public String serialize() throws IOException {
     return JsonUtils.toJson(this);
   }

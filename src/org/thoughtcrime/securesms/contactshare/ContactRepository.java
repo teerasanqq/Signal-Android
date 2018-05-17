@@ -117,6 +117,7 @@ public class ContactRepository {
         }
       }
     }
+
     List<Phone> numbers = new ArrayList<>(numberMap.size());
     numbers.addAll(numberMap.values());
     return numbers;

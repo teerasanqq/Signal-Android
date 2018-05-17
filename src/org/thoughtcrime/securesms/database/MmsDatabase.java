@@ -78,6 +78,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.thoughtcrime.securesms.contactshare.Contact.*;
+
 public class MmsDatabase extends MessagingDatabase {
 
   private static final String TAG = MmsDatabase.class.getSimpleName();
@@ -623,15 +625,16 @@ public class MmsDatabase extends MessagingDatabase {
       JSONArray     jsonContacts = new JSONArray(serializedContacts);
 
       for (int i = 0; i < jsonContacts.length(); i++) {
-        Contact contact = Contact.deserialize(jsonContacts.getJSONObject(i).toString());
-        if (contact.getAttachmentId() != null) {
-          DatabaseAttachment attachment = attachmentIdMap.get(contact.getAttachmentId());
+        Contact contact = deserialize(jsonContacts.getJSONObject(i).toString());
+
+        if (contact.getAvatar() != null && contact.getAvatar().getAttachmentId() != null) {
+          DatabaseAttachment attachment = attachmentIdMap.get(contact.getAvatar().getAttachmentId());
           contacts.add(new Contact(contact.getName(),
                                    contact.getOrganization(),
                                    contact.getPhoneNumbers(),
                                    contact.getEmails(),
                                    contact.getPostalAddresses(),
-                                   new Contact.Avatar(contact.getAttachmentId(), attachment, contact.getAvatar().isProfile())));
+                                   new Avatar(contact.getAvatar().getAttachmentId(), attachment, contact.getAvatar().isProfile())));
 
           if (attachment != null) {
             attachments.remove(attachment);
@@ -965,7 +968,7 @@ public class MmsDatabase extends MessagingDatabase {
     deleteThreads(singleThreadSet);
   }
 
-  private void updateMessageSharedContacts(long mmsId, @NonNull Map<Attachment, AttachmentId> insertedAttachments, @NonNull List<Contact> contacts) {
+  private void updateMessageSharedContacts(long mmsId, @NonNull Map<Attachment, AttachmentId> insertedAttachmentIds, @NonNull List<Contact> contacts) {
     if (contacts.isEmpty()) return;
 
     JSONArray sharedContactJson = new JSONArray();
@@ -973,18 +976,22 @@ public class MmsDatabase extends MessagingDatabase {
     for (Contact contact : contacts) {
       try {
         AttachmentId attachmentId = null;
+
         if (contact.getAvatarAttachment() != null) {
-          attachmentId = insertedAttachments.get(contact.getAvatarAttachment());
+          attachmentId = insertedAttachmentIds.get(contact.getAvatarAttachment());
         }
 
-        Contact populatedContact = new Contact(contact.getName(),
-                                               contact.getOrganization(),
-                                               contact.getPhoneNumbers(),
-                                               contact.getEmails(),
-                                               contact.getPostalAddresses(),
-                                               new Contact.Avatar(attachmentId, contact.getAvatarAttachment(), contact.getAvatar() != null && contact.getAvatar().isProfile()));
+        Avatar  updatedAvatar  = new Avatar(attachmentId,
+                                            contact.getAvatarAttachment(),
+                                            contact.getAvatar() != null && contact.getAvatar().isProfile());
+        Contact updatedContact = new Contact(contact.getName(),
+                                             contact.getOrganization(),
+                                             contact.getPhoneNumbers(),
+                                             contact.getEmails(),
+                                             contact.getPostalAddresses(),
+                                             updatedAvatar);
 
-        sharedContactJson.put(new JSONObject(populatedContact.serialize()));
+        sharedContactJson.put(new JSONObject(updatedContact.serialize()));
       } catch (JSONException | IOException e) {
         Log.w(TAG, "Failed to serialize shared contact. Skipping it.", e);
       }

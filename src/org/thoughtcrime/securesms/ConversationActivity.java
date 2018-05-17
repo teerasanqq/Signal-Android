@@ -1594,7 +1594,6 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     return this.threadId;
   }
 
-
   private String getMessage() throws InvalidMessageException {
     String rawText = composeText.getTextTrimmed();
 
@@ -1700,23 +1699,8 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     sendMediaMessage(forceSms, getMessage(), attachmentManager.buildSlideDeck(), Collections.emptyList(), expiresIn, subscriptionId, initiating);
   }
 
-  private ListenableFuture<Void> sendMediaMessage(final    boolean       forceSms,
-                                                           String        body,
-                                                           SlideDeck     slideDeck,
-                                                           List<Contact> contactsWithAvatars,
-                                                  final    long          expiresIn,
-                                                  final    int           subscriptionId,
-                                                  final    boolean       initiating)
-  {
-    OutgoingMediaMessage outgoingMessageCandidate = new OutgoingMediaMessage(recipient,
-                                                                             slideDeck,
-                                                                             body,
-                                                                             System.currentTimeMillis(),
-                                                                             subscriptionId,
-                                                                             expiresIn,
-                                                                             distributionType,
-                                                                             inputPanel.getQuote().orNull(),
-                                                                             contactsWithAvatars);
+  private ListenableFuture<Void> sendMediaMessage(final boolean forceSms, String body, SlideDeck slideDeck, List<Contact> contacts, final long expiresIn, final int subscriptionId, final boolean initiating) {
+    OutgoingMediaMessage outgoingMessageCandidate = new OutgoingMediaMessage(recipient, slideDeck, body, System.currentTimeMillis(), subscriptionId, expiresIn, distributionType, inputPanel.getQuote().orNull(), contacts);
 
     final SettableFuture<Void> future  = new SettableFuture<>();
     final Context              context = getApplicationContext();

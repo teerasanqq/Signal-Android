@@ -1,14 +1,8 @@
 package org.thoughtcrime.securesms.attachments;
 
-import android.os.Parcelable;
-import android.support.annotation.NonNull;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.thoughtcrime.securesms.util.JsonUtils;
 import org.thoughtcrime.securesms.util.Util;
-
-import java.io.IOException;
 
 public class AttachmentId {
 
@@ -57,13 +51,5 @@ public class AttachmentId {
   @Override
   public int hashCode() {
     return Util.hashCode(rowId, uniqueId);
-  }
-
-  public @NonNull String serialize() {
-    try {
-      return JsonUtils.toJson(this);
-    } catch (IOException e) {
-      return "";
-    }
   }
 }

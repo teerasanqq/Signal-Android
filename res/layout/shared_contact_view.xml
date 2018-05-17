@@ -54,7 +54,6 @@
 
         </LinearLayout>
 
-        <!-- TODO: Break into separate file with <include> -->
         <LinearLayout
             android:id="@+id/contact_action_button_container"
             android:layout_width="match_parent"

@@ -45,8 +45,8 @@ import static org.thoughtcrime.securesms.mms.DecryptableStreamUriLoader.*;
 
 public class SharedContactDetailsActivity extends PassphraseRequiredActionBarActivity implements RecipientModifiedListener {
 
-  private static final int    CODE_ADD_EDIT_CONTACT   = 2323;
-  private static final String KEY_CONTACT = "contact";
+  private static final int    CODE_ADD_EDIT_CONTACT = 2323;
+  private static final String KEY_CONTACT           = "contact";
 
   private ContactFieldAdapter contactFieldAdapter;
   private TextView            nameView;

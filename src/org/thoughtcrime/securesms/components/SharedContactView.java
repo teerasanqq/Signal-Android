@@ -32,8 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class SharedContactView extends LinearLayout implements RecipientModifiedListener
-{
+public class SharedContactView extends LinearLayout implements RecipientModifiedListener {
 
   private ImageView avatarView;
   private TextView  nameView;
@@ -78,9 +77,9 @@ public class SharedContactView extends LinearLayout implements RecipientModified
   }
 
   public void setContact(@NonNull Contact contact, @NonNull GlideRequests glideRequests, @NonNull Locale locale) {
-    this.glideRequests     = glideRequests;
-    this.locale            = locale;
-    this.contact = contact;
+    this.glideRequests = glideRequests;
+    this.locale        = locale;
+    this.contact       = contact;
 
     Stream.of(activeRecipients.values()).forEach(recipient ->  recipient.removeListener(this));
     this.activeRecipients.clear();

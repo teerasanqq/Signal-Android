@@ -76,8 +76,8 @@ public class ContactModelMapper {
     if (sharedContact.getPhone().isPresent()) {
       for (SharedContact.Phone phone : sharedContact.getPhone().get()) {
         phoneNumbers.add(new Phone(phone.getValue(),
-            remoteToLocalType(phone.getType()),
-            phone.getLabel().orNull()));
+                                   remoteToLocalType(phone.getType()),
+                                   phone.getLabel().orNull()));
       }
     }
 
@@ -85,8 +85,8 @@ public class ContactModelMapper {
     if (sharedContact.getEmail().isPresent()) {
       for (SharedContact.Email email : sharedContact.getEmail().get()) {
         emails.add(new Email(email.getValue(),
-            remoteToLocalType(email.getType()),
-            email.getLabel().orNull()));
+                             remoteToLocalType(email.getType()),
+                             email.getLabel().orNull()));
       }
     }
 
@@ -94,14 +94,14 @@ public class ContactModelMapper {
     if (sharedContact.getAddress().isPresent()) {
       for (SharedContact.PostalAddress postalAddress : sharedContact.getAddress().get()) {
         postalAddresses.add(new PostalAddress(remoteToLocalType(postalAddress.getType()),
-            postalAddress.getLabel().orNull(),
-            postalAddress.getStreet().orNull(),
-            postalAddress.getPobox().orNull(),
-            postalAddress.getNeighborhood().orNull(),
-            postalAddress.getCity().orNull(),
-            postalAddress.getRegion().orNull(),
-            postalAddress.getPostcode().orNull(),
-            postalAddress.getCountry().orNull()));
+                                              postalAddress.getLabel().orNull(),
+                                              postalAddress.getStreet().orNull(),
+                                              postalAddress.getPobox().orNull(),
+                                              postalAddress.getNeighborhood().orNull(),
+                                              postalAddress.getCity().orNull(),
+                                              postalAddress.getRegion().orNull(),
+                                              postalAddress.getPostcode().orNull(),
+                                              postalAddress.getCountry().orNull()));
       }
     }
 
