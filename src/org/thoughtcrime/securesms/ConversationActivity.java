@@ -2090,7 +2090,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     if (messageRecord.isMms() && !((MmsMessageRecord) messageRecord).getSharedContacts().isEmpty()) {
       Contact   contact     = ((MmsMessageRecord) messageRecord).getSharedContacts().get(0);
       String    displayName = ContactUtil.getDisplayName(contact);
-      String    body        = getString(R.string.MessageNotifier_contact_message, EmojiStrings.BUST_IN_SILHOUETTE, displayName);
+      String    body        = getString(R.string.ConversationActivity_quoted_contact_message, EmojiStrings.BUST_IN_SILHOUETTE, displayName);
       SlideDeck slideDeck   = new SlideDeck();
 
       if (contact.getAvatarAttachment() != null) {

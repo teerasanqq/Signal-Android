@@ -89,11 +89,9 @@ public abstract class PushSendJob extends SendJob {
     List<SignalServiceAttachment> attachments = new LinkedList<>();
 
     for (final Attachment attachment : parts) {
-      if (!MediaUtil.SHARED_CONTACT.equals(attachment.getContentType())) {
-        SignalServiceAttachment converted = getAttachmentFor(attachment);
-        if (converted != null) {
-          attachments.add(converted);
-        }
+      SignalServiceAttachment converted = getAttachmentFor(attachment);
+      if (converted != null) {
+        attachments.add(converted);
       }
     }
 

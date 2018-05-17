@@ -60,6 +60,15 @@ public class Contact implements Parcelable {
     this.avatar          = avatar;
   }
 
+  public Contact(@NonNull Contact contact, @Nullable Avatar avatar) {
+    this(contact.getName(),
+         contact.getOrganization(),
+         contact.getPhoneNumbers(),
+         contact.getEmails(),
+         contact.getPostalAddresses(),
+         avatar);
+  }
+
   private Contact(Parcel in) {
     this(in.readParcelable(Name.class.getClassLoader()),
          in.readString(),

@@ -216,22 +216,20 @@ public class SharedContactDetailsActivity extends PassphraseRequiredActionBarAct
       inviteButtonView.setVisibility(View.GONE);
 
       messageButtonView.setOnClickListener(v -> {
-        ContactUtil.selectRecipient(this, pushUsers, dynamicLanguage.getCurrentLocale(), recipient -> {
-          new RetrieveThreadIdTask(this, recipient, threadId -> {
-            CommunicationActions.startConversation(this, recipient.getAddress(), threadId, null);
-          }).execute();
+        ContactUtil.selectRecipientThroughDialog(this, pushUsers, dynamicLanguage.getCurrentLocale(), recipient -> {
+          CommunicationActions.startConversation(this, recipient, null);
         });
       });
 
       callButtonView.setOnClickListener(v -> {
-        ContactUtil.selectRecipient(this, pushUsers, dynamicLanguage.getCurrentLocale(), recipient -> CommunicationActions.startVoiceCall(this, recipient));
+        ContactUtil.selectRecipientThroughDialog(this, pushUsers, dynamicLanguage.getCurrentLocale(), recipient -> CommunicationActions.startVoiceCall(this, recipient));
       });
     } else if (!systemUsers.isEmpty()) {
       inviteButtonView.setVisibility(View.VISIBLE);
       engageContainerView.setVisibility(View.GONE);
 
       inviteButtonView.setOnClickListener(v -> {
-        ContactUtil.selectRecipient(this, systemUsers, dynamicLanguage.getCurrentLocale(), recipient -> {
+        ContactUtil.selectRecipientThroughDialog(this, systemUsers, dynamicLanguage.getCurrentLocale(), recipient -> {
           CommunicationActions.composeSmsThroughDefaultApp(this, recipient.getAddress(), getString(R.string.InviteActivity_lets_switch_to_signal, "https://sgnl.link/1KpeYmF"));
         });
       });

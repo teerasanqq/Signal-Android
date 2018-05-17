@@ -55,7 +55,6 @@ import android.widget.Toast;
 import org.thoughtcrime.securesms.ConversationAdapter.HeaderViewHolder;
 import org.thoughtcrime.securesms.ConversationAdapter.ItemClickListener;
 import org.thoughtcrime.securesms.contactshare.ContactUtil;
-import org.thoughtcrime.securesms.contactshare.RetrieveThreadIdTask;
 import org.thoughtcrime.securesms.contactshare.SharedContactDetailsActivity;
 import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.database.DatabaseFactory;
@@ -691,11 +690,8 @@ public class ConversationFragment extends Fragment
     public void onMessageSharedContactClicked(@NonNull List<Recipient> choices) {
       if (getContext() == null) return;
 
-      ContactUtil.selectRecipient(getContext(), choices, locale, recipient -> {
-        new RetrieveThreadIdTask(getContext(), recipient, threadId -> {
-          if (getContext() == null) return;
-          CommunicationActions.startConversation(getContext(), recipient.getAddress(), threadId, null);
-        }).execute();
+      ContactUtil.selectRecipientThroughDialog(getContext(), choices, locale, recipient -> {
+        CommunicationActions.startConversation(getContext(), recipient, null);
       });
     }
 
@@ -703,7 +699,7 @@ public class ConversationFragment extends Fragment
     public void onInviteSharedContactClicked(@NonNull List<Recipient> choices) {
       if (getContext() == null) return;
 
-      ContactUtil.selectRecipient(getContext(), choices, locale, recipient -> {
+      ContactUtil.selectRecipientThroughDialog(getContext(), choices, locale, recipient -> {
         CommunicationActions.composeSmsThroughDefaultApp(getContext(), recipient.getAddress(), getString(R.string.InviteActivity_lets_switch_to_signal, "https://sgnl.link/1KpeYmF"));
       });
     }

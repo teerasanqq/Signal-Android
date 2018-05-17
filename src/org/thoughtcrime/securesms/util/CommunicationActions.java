@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
@@ -14,6 +15,7 @@ import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.WebRtcCallActivity;
 import org.thoughtcrime.securesms.contactshare.Contact;
 import org.thoughtcrime.securesms.database.Address;
+import org.thoughtcrime.securesms.database.DatabaseFactory;
 import org.thoughtcrime.securesms.permissions.Permissions;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.service.WebRtcCallService;
@@ -41,21 +43,30 @@ public class CommunicationActions {
         .execute();
   }
 
-  public static void startConversation(@NonNull  Context context,
-                                       @NonNull  Address address,
-                                                 long    threadId,
-                                       @Nullable String  text)
+  public static void startConversation(@NonNull  Context   context,
+                                       @NonNull  Recipient recipient,
+                                       @Nullable String    text)
   {
-    Intent intent = new Intent(context, ConversationActivity.class);
-    intent.putExtra(ConversationActivity.ADDRESS_EXTRA, address);
-    intent.putExtra(ConversationActivity.THREAD_ID_EXTRA, threadId);
-    intent.putExtra(ConversationActivity.TIMING_EXTRA, System.currentTimeMillis());
+    new AsyncTask<Void, Void, Long>() {
+      @Override
+      protected Long doInBackground(Void... voids) {
+        return DatabaseFactory.getThreadDatabase(context).getThreadIdFor(recipient);
+      }
 
-    if (!TextUtils.isEmpty(text)) {
-      intent.putExtra(ConversationActivity.TEXT_EXTRA, text);
-    }
+      @Override
+      protected void onPostExecute(Long threadId) {
+        Intent intent = new Intent(context, ConversationActivity.class);
+        intent.putExtra(ConversationActivity.ADDRESS_EXTRA, recipient.getAddress());
+        intent.putExtra(ConversationActivity.THREAD_ID_EXTRA, threadId);
+        intent.putExtra(ConversationActivity.TIMING_EXTRA, System.currentTimeMillis());
 
-    context.startActivity(intent);
+        if (!TextUtils.isEmpty(text)) {
+          intent.putExtra(ConversationActivity.TEXT_EXTRA, text);
+        }
+
+        context.startActivity(intent);
+      }
+    }.execute();
   }
 
   public static void composeSmsThroughDefaultApp(@NonNull Context context, @NonNull Address address, @Nullable String text) {

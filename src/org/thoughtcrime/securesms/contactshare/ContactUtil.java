@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.provider.ContactsContract;
+import android.support.annotation.MainThread;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.WorkerThread;
@@ -102,7 +103,8 @@ public final class ContactUtil {
     return address.serialize();
   }
 
-  public static void selectRecipient(@NonNull Context context, @NonNull List<Recipient> choices, @NonNull Locale locale, @NonNull RecipientSelectedCallback callback) {
+  @MainThread
+  public static void selectRecipientThroughDialog(@NonNull Context context, @NonNull List<Recipient> choices, @NonNull Locale locale, @NonNull RecipientSelectedCallback callback) {
     if (choices.size() > 1) {
       CharSequence[] values = new CharSequence[choices.size()];
 
