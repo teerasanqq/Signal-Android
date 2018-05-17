@@ -86,6 +86,7 @@ import org.thoughtcrime.securesms.components.camera.QuickAttachmentDrawer;
 import org.thoughtcrime.securesms.components.camera.QuickAttachmentDrawer.AttachmentDrawerListener;
 import org.thoughtcrime.securesms.components.camera.QuickAttachmentDrawer.DrawerState;
 import org.thoughtcrime.securesms.components.emoji.EmojiDrawer;
+import org.thoughtcrime.securesms.components.emoji.EmojiStrings;
 import org.thoughtcrime.securesms.components.identity.UntrustedSendDialog;
 import org.thoughtcrime.securesms.components.identity.UnverifiedBannerView;
 import org.thoughtcrime.securesms.components.identity.UnverifiedSendDialog;
@@ -2089,7 +2090,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     if (messageRecord.isMms() && !((MmsMessageRecord) messageRecord).getSharedContacts().isEmpty()) {
       Contact   contact     = ((MmsMessageRecord) messageRecord).getSharedContacts().get(0);
       String    displayName = ContactUtil.getDisplayName(contact);
-      String    body        = getString(R.string.MessageNotifier_contact_message, displayName);
+      String    body        = getString(R.string.MessageNotifier_contact_message, EmojiStrings.BUST_IN_SILHOUETTE, displayName);
       SlideDeck slideDeck   = new SlideDeck();
 
       if (contact.getAvatarAttachment() != null) {
